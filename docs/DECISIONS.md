@@ -163,3 +163,27 @@ to be: they are derived rather than authored, and a recompute that ran on an
 agent's behalf was briefly turning every formula cell on the sheet into a pending
 proposal. `setCell` now lets a `formula` write through unconditionally and applies
 the rule to everything else.
+
+## D-17. The planner's compose step is deterministic, not a model call
+
+Section 13 says the planner runs on the Anthropic API with the check registry,
+the worker list and the workflow library as tools. It is written here as a fixed
+procedure over a small task ontology instead: nine task kinds, a recipe per
+family, owners chosen from the Workers tab by the tools a step needs, checks
+taken from the registry, and the ask's own terms read into input cells. The
+reason is the same as D-4: the gate has to be deterministic and there is no API
+key in this build. The procedure is the part the plan insists on, "an agent with
+a fixed procedure, not a free form chat", and a model slots in at the compose
+step behind the same `Composition` type when a key is present, widening what can
+be decomposed without changing what a draft is.
+
+## D-18. An intent's patterns are alternatives, so a match is scored by weight
+
+The library's first scoring rule was the fraction of an intent's patterns that
+appeared, which punished an intent for listing more ways of saying the same
+thing: "Priya starts Monday as a sales engineer in Austin" matched two of Day
+One's seven patterns and scored 0.29, under the threshold, so it composed a plan
+instead of recognising the workflow that already existed. Patterns are
+alternatives, not requirements, so the score is now the number of words the
+matched patterns account for, and two is the floor. A single common word is
+still not a match.

@@ -1,0 +1,32 @@
+{
+  "note": "The workflow library's intent patterns. Recognising an ask is data a person can read and correct, not code. A workflow may also declare its own intent block in its YAML; both are read.",
+  "intents": [
+    {
+      "workflow": "day_one",
+      "patterns": ["starts monday", "starts on", "joins", "new hire", "onboard", "first day", "sales engineer"],
+      "examples": [
+        "Priya starts Monday as a sales engineer in Austin",
+        "Onboard Sam, joining the support team on the 6th"
+      ],
+      "inputs": {
+        "hire_name": "^\\s*([A-Z][a-z]+)\\b",
+        "role": "as an?\\s+([a-z ]+?)(?:\\s+in\\b|$|[.,])",
+        "location": "\\bin\\s+([A-Z][a-zA-Z]+)"
+      }
+    },
+    {
+      "workflow": "kl_sourcing",
+      "patterns": ["find leads", "leads in", "candidate borrowers", "sourcing", "deal origination"],
+      "examples": ["find five leads in specialty pharma for the core lending fund"],
+      "inputs": {
+        "sector": "\\bin\\s+([a-z ]+?)\\s+for\\b",
+        "fund": "\\bfor the\\s+([a-z ]+fund)\\b"
+      }
+    },
+    {
+      "workflow": "kl_intake",
+      "patterns": ["classify the documents", "document intake", "file the documents", "data room"],
+      "examples": ["classify everything in the new data room folder and link it to a deal"]
+    }
+  ]
+}

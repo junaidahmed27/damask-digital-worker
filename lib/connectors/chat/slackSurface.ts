@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { contracts, runs, workers, workflows, type Worker } from "@/lib/db/schema";
-import { newId } from "@/lib/ids";
+import { contracts, runs, workers, type Worker } from "@/lib/db/schema";
 import { contractRun } from "@/lib/runtime/contracting";
 import { event } from "@/lib/runtime/events";
 import { send, settle } from "@/lib/runtime/server";
+import { plan } from "@/lib/planner/planner";
 import { verifySlackSignature } from "./slack";
 
 /**
@@ -39,7 +39,15 @@ export async function workerForSlackUser(slackUserId: string): Promise<Worker | 
 }
 
 export type CommandOutcome =
-  | { kind: "drafted"; runId: string; rows: number; goal: string }
+  | {
+      kind: "drafted";
+      runId: string;
+      rows: number;
+      goal: string;
+      how: "library_match" | "composed";
+      workflow: string;
+      questions: string[];
+    }
   | { kind: "contracted"; runId: string; started: number }
   | { kind: "answer"; text: string }
   | { kind: "refused"; text: string };
@@ -61,22 +69,26 @@ export async function handleCommand(args: { text: string; slackUserId: string })
 
   if (verb === "new") {
     const { db } = await getDb();
-    const [workflow] = await db.select().from(workflows).where(eq(workflows.name, "day_one")).limit(1);
-    if (!workflow) return { kind: "refused", text: "no workflow is loaded" };
 
-    const runId = newId("run");
-    await db.insert(runs).values({
-      id: runId,
-      workflowId: workflow.id,
-      workflowVersion: workflow.version,
-      goal: withHireId(remainder),
-      requestedBy: person.id,
-      status: "drafted",
-    });
-    await send(event("run/created", { runId }));
-    await settle();
-    const rows = await db.select().from(contracts).where(eq(contracts.runId, runId));
-    return { kind: "drafted", runId, rows: rows.length, goal: remainder };
+    // The planner reads the ask, matches the library or composes, and drafts.
+    // Nothing runs until the person replies `/ledger contract`.
+    const draft = await plan(db, { ask: remainder, requestedBy: person.id, source: "slack" });
+
+    if (draft.events.length > 0) {
+      await send(draft.events);
+      await settle();
+    }
+
+    const rows = await db.select().from(contracts).where(eq(contracts.runId, draft.runId));
+    return {
+      kind: "drafted",
+      runId: draft.runId,
+      rows: draft.how === "library_match" ? rows.length : draft.columns.length,
+      goal: remainder,
+      how: draft.how,
+      workflow: draft.workflow,
+      questions: draft.questions,
+    };
   }
 
   if (verb === "contract") {
@@ -138,9 +150,3 @@ async function latestDraftedRun(): Promise<string | undefined> {
   return run?.id;
 }
 
-/** The planner in WP-12 reads the ask properly; until then a name is enough. */
-function withHireId(goal: string): string {
-  if (/hire_id=/.test(goal)) return goal;
-  const first = goal.trim().split(/\s+/)[0];
-  return first ? `${goal} hire_id=${first.toLowerCase().replace(/[^a-z]/g, "")}` : goal;
-}
