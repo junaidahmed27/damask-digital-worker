@@ -1,4 +1,4 @@
-.PHONY: dev build migrate seed demo audit rehearse memory providers parity container test typecheck lint gate clean fresh
+.PHONY: dev build migrate seed demo audit rehearse memory providers parity container container-smoke test typecheck lint gate clean fresh
 
 dev:
 	npm run dev
@@ -38,7 +38,10 @@ parity:
 
 ## Build the container the customer cloud path deploys.
 container:
-	docker build -t work-ledger:$$(git rev-parse --short HEAD) .
+	docker build -t work-ledger:$$(git rev-parse --short HEAD) -t work-ledger:local .
+
+container-smoke:
+	TAG=work-ledger:local ./scripts/container_smoke.sh
 
 test:
 	npm run test

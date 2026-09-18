@@ -5,3 +5,5 @@ node_modules
 .audit
 tests
 *.log
+Dockerfile
+.dockerignore
