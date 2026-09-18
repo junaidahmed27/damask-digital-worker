@@ -51,3 +51,98 @@ th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--lin
 th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 tr:last-child td { border-bottom: none; }
 code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+/* The grid */
+h2 { font-size: 15px; font-weight: 650; margin: 28px 0 8px; }
+h3 { font-size: 13px; font-weight: 650; margin: 18px 0 4px; }
+a { color: var(--accent); }
+.muted { color: var(--muted); }
+.small { font-size: 11px; }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.current { font-weight: 650; }
+tr.selected td { background: color-mix(in oklab, var(--accent) 8%, transparent); }
+button { font: inherit; }
+.linky {
+  background: none; border: none; padding: 0; color: var(--accent);
+  cursor: pointer; text-align: left; font: inherit;
+}
+.linky:hover { text-decoration: underline; }
+.pill {
+  display: inline-block; padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line); font-size: 11px; color: var(--muted);
+}
+.state {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); cursor: text;
+}
+.state-done { border-color: var(--good); color: var(--good); }
+.state-verified { border-color: var(--good); }
+.state-handed_back, .state-escalated { border-color: var(--warn); color: var(--warn); }
+.state-awaiting_approval { border-color: var(--accent); color: var(--accent); }
+.state-failed { border-color: var(--bad); color: var(--bad); }
+.statusinput {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+  padding: 2px 6px; width: 160px; border: 1px solid var(--accent); border-radius: 6px;
+  background: var(--panel); color: var(--ink);
+}
+.refusal {
+  margin: 6px 0 0; padding: 6px 8px; border-left: 2px solid var(--bad);
+  background: color-mix(in oklab, var(--bad) 8%, transparent);
+  color: var(--ink); font-size: 12px; max-width: 320px;
+}
+.decide { margin-top: 6px; display: flex; gap: 6px; }
+.decide button {
+  padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); cursor: pointer;
+}
+.decide button:first-child { border-color: var(--good); color: var(--good); }
+
+/* Time slider */
+.slider { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; flex-wrap: wrap; }
+.slider input[type="range"] { flex: 1; min-width: 200px; max-width: 480px; accent-color: var(--accent); }
+.slider label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* Evidence drawer */
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw);
+  background: var(--panel); border-left: 1px solid var(--line);
+  padding: 16px 20px; overflow: auto; box-shadow: -8px 0 28px rgba(0,0,0,.10); z-index: 20;
+}
+.drawer header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 8px; }
+.drawer header button {
+  padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); cursor: pointer;
+}
+.drawer details { border-bottom: 1px solid var(--line); padding: 6px 0; }
+.drawer summary { cursor: pointer; }
+.drawer pre {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; overflow: auto; font-size: 11px; max-height: 260px;
+}
+.chain td { font-size: 11px; padding: 3px 6px; }
+
+/* New plan */
+.newrun { margin: 28px 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.newrun h2 { margin-top: 0; }
+.newrun input {
+  width: min(560px, 100%); padding: 6px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); margin-right: 8px;
+}
+.newrun button {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); cursor: pointer; margin-right: 6px;
+}
+.newrun button:disabled { opacity: .45; cursor: default; }
+
+.runrow { margin-bottom: 20px; }
+.runrow table { font-size: 12px; }
+
+@media (max-width: 720px) {
+  table, thead, tbody, tr, td, th { display: block; }
+  thead { display: none; }
+  tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  td { border: none; padding: 2px 12px; }
+  .drawer { width: 100vw; }
+}

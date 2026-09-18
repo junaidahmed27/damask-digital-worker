@@ -2,8 +2,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { rowsOf, type DbHandle } from "./client";
+import { migrationsDir as MIGRATIONS_DIR } from "@/lib/paths";
 
-const MIGRATIONS_DIR = new URL("./migrations/", import.meta.url).pathname;
+
 
 /**
  * Applies the generated SQL migrations in filename order and records each in

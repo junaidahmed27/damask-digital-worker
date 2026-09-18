@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
-import { fixturesDir } from "@/lib/fixtures";
+import { fixturesDir } from "@/lib/paths";
 import { defineConnector, result, type Connector } from "../kit";
 
 /**

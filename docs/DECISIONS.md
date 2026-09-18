@@ -106,3 +106,22 @@ now on the row. The onboarding pack read the first match, which made the Shipper
 corrected booking fail against the cancelled booking's tracking lookup for ever.
 Every evidence lookup in the pack, and the `findEvidence` helper, now read the
 latest match.
+
+## D-12. The hash covers everything in the plan's formula and nothing more
+
+Section 3 defines `hash = sha256(prev_hash || contract_id || from || to ||
+actor || recorded_at || payload)`. The `reason` column is not in it, so the
+human readable reason on a transition is the one part of the log that can be
+edited without breaking chain verification. `lib/ledger/hash.ts` implements the
+formula as written, because it is a protected zone and the formula is the plan's
+decision rather than this build's. A test states the limit explicitly instead of
+leaving it to be assumed, and where a reason matters for the record the runtime
+also writes it into the payload, which is covered.
+
+## D-13. Data directories resolve from the working directory
+
+`new URL("../fixtures/", import.meta.url)` is an asset reference to the Next.js
+bundler, which cannot resolve a directory and fails the build of any route that
+reaches the fixtures. `lib/paths.ts` resolves the fixtures, the workflows and the
+migrations from `process.cwd()`, overridable with `LEDGER_ROOT`. The app, the
+scripts and the tests all run from the repository root.

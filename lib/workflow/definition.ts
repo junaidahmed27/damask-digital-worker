@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
+import { workflowsDir as WORKFLOWS_DIR } from "@/lib/paths";
 import { z } from "zod";
 
 const workerDef = z.object({
@@ -83,7 +84,6 @@ export type WorkflowWorker = z.infer<typeof workerDef>;
 export type WorkflowRow = z.infer<typeof rowDef>;
 export type WorkflowColumn = z.infer<typeof columnDef>;
 
-const WORKFLOWS_DIR = new URL("../../workflows/", import.meta.url).pathname;
 
 export function parseWorkflow(source: string): WorkflowDefinition {
   return workflowDefinitionSchema.parse(parse(source));
