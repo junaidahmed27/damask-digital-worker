@@ -349,7 +349,7 @@ The ask surface (WP-18) is this compiler with a thin front and back: a planner t
 
 ## 17. Work packages, in build order, with acceptance
 
-- WP-0 Bootstrap (1 hour): repo, Next.js app, Drizzle, Inngest serve route, Clerk, Vercel deploy green. Acceptance: `make dev` serves the empty sheet; `/api/inngest` registers.
+- [x] WP-0 Bootstrap (1 hour): repo, Next.js app, Drizzle, Inngest serve route, Clerk, Vercel deploy green. Acceptance: `make dev` serves the empty sheet; `/api/inngest` registers.
 - WP-1 Schema and seed (1.5 hours): all tables, migrations, Day One fixtures, workers. Acceptance: `make seed` loads six workers and the workflow; `select count(*) from workers` = 6.
 - WP-2 State machine and hash chain (2 hours): `transition()` with all eight invariants, transitions table, replay. Acceptance: invariant tests pass; tampering with one transition row breaks the chain verification; `/api/replay?as_of=` returns the earlier state.
 - WP-3 Runtime (2.5 hours): plan, agentStep, runChecks, approvals with `waitForEvent`, unblock, deadlines, revoke, project. Acceptance: a run of Day One with simulators reaches `done` on every row with the two traps recorded as `handed_back` transitions.

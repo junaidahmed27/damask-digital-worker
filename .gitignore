@@ -1,4 +1,9 @@
-.DS_Store
+.ledger-data/
+.next/
 node_modules/
 .env
 .env.local
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+.audit/
