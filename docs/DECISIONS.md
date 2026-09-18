@@ -51,3 +51,29 @@ Next.js receiver adds a dependency for one thing the ledger needs: verifying the
 v0 signature and acknowledging inside three seconds. `lib/connectors/chat/slack.ts`
 verifies the signature with `node:crypto` and posts through `@slack/web-api`, which
 is the supported client. Behaviour is the same and the route handler stays thin.
+
+## D-6. WP-4 is built before WP-3
+
+The build order in section 17 lists the runtime before the connector kit, but
+WP-3's acceptance is a full Day One run "with simulators", so the simulators have
+to exist first. WP-4 therefore lands first and WP-3 follows immediately; nothing
+else in the order changes.
+
+## D-7. A vendor connector is wired in only when its credentials are present
+
+`createRegistry()` picks the Workday, Okta, Slack or Google implementation when
+that system's environment variables are set, and the simulator with the identical
+ops otherwise. This is what golden rule 10 asks for in code rather than in a
+prompt: with nothing configured the demo cannot reach a real system, because no
+real implementation is in the registry to reach it with. `simulatorsOnly: true`
+forces the simulators for the tests and the gate whatever the environment holds.
+
+## D-8. The documents connector is verified against the simulator in this build
+
+WP-4 asks for the Google Docs connector to be real. It is written against the
+Docs and Drive APIs with a service account and is selected the moment
+`GOOGLE_SERVICE_ACCOUNT_JSON` is set, but no service account exists in this build
+environment, so the acceptance for "the doc is created and sections written" is
+demonstrated against the simulator, which implements the same three ops. The same
+is true of Slack in WP-6. Both are one environment variable away from running for
+real and neither has a second code path.
