@@ -187,3 +187,21 @@ instead of recognising the workflow that already existed. Patterns are
 alternatives, not requirements, so the score is now the number of words the
 matched patterns account for, and two is the floor. A single common word is
 still not a match.
+
+## D-19. An ambiguous capture is a pending proposal, not a new mechanism
+
+The plan says the capture connector asks rather than guesses when two rows could
+match. That question is written as a pending `proposals` row of kind `row`,
+because it is the same thing an agent's proposed cell is: something a person has
+to settle before it takes effect. So it appears in the same place in the grid,
+it is answered the same way, and the answer carries the same identity. When a
+person names the row, the capture is replayed with `belongsTo` set and matching is
+skipped entirely; asking the same question twice would be the connector second
+guessing them.
+
+## D-20. Unmatched captures land in an Inbox sheet rather than being dropped
+
+A message that matches no row still has to go somewhere, because losing it is
+worse than filing it imprecisely. Capture creates an `Inbox` batch sheet on first
+use and lands the record there with its attachments and digests, where a rule or
+a person can move it later. This is the plan's "an inbox sheet holds threads".
