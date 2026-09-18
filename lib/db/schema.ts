@@ -338,6 +338,52 @@ export const connectorEvents = pgTable("connector_events", {
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * The database queue. In the Vercel deployment Inngest holds the durable state;
+ * in a customer's boundary, where a third party queue may not be allowed, the
+ * same events are held here and worked by the same functions. Rows are claimed
+ * with a lease so two workers never run the same message.
+ */
+export const queueMessages = pgTable(
+  "queue_messages",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: text("status").$type<"ready" | "claimed" | "done" | "failed">().notNull().default("ready"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(3),
+    availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+    leasedUntil: timestamp("leased_until", { withTimezone: true }),
+    leasedBy: text("leased_by"),
+    lastError: text("last_error"),
+    createdAt: now(),
+  },
+  (t) => [index("queue_status_available").on(t.status, t.availableAt)],
+);
+
+/** Every agent action, tool call and transition, as a span. */
+export const telemetrySpans = pgTable(
+  "telemetry_spans",
+  {
+    id: id(),
+    traceId: text("trace_id").notNull(),
+    spanId: text("span_id").notNull(),
+    parentSpanId: text("parent_span_id"),
+    name: text("name").notNull(),
+    kind: text("kind").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    status: text("status").$type<"ok" | "error">().notNull().default("ok"),
+    attributes: jsonb("attributes").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    exported: boolean("exported").notNull().default(false),
+  },
+  (t) => [index("telemetry_trace").on(t.traceId, t.startedAt)],
+);
+
+export type QueueMessage = typeof queueMessages.$inferSelect;
+export type TelemetrySpan = typeof telemetrySpans.$inferSelect;
+
 /* ---------------------------------------------------------------- memory */
 
 /** An entity the memory knows: a deal, a borrower, a person, a theme. */

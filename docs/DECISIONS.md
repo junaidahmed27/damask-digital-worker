@@ -359,3 +359,45 @@ shaped HTTP endpoint and points the connector at it through its own
 anyway. Nothing inside the connector is mocked: it fetches a client credentials
 token, posts channel messages and posts Adaptive Cards over the wire, and the
 Day One scenario reaches done on all seven rows with both traps through it.
+
+## D-36. The Azure path is a configuration, and `make parity` proves it
+
+WP-20's acceptance is that the same commit runs in Azure with Teams and produces
+the same audit export. There is no Azure subscription in this build, so the
+acceptance is driven as far as it honestly can be: `scripts/parity.ts` runs the
+Day One scenario twice from one process, once under the Vercel shaped
+configuration and once under the Azure shaped one, and compares the two audit
+exports row by row, evidence kind by evidence kind, approver by approver. They
+match.
+
+The Azure run is not a simulation of the differences. It uses the database queue
+instead of the in process dispatcher, so the durable state really is carried by
+Postgres; it uses the Teams connector against a Graph shaped endpoint over a real
+socket, so the messages and the Adaptive Cards really are posted; Entra is
+selected in the auth abstraction; and telemetry is on, with a span per transition.
+What is not proven is that Azure Container Apps accepts the bicep template, which
+needs a subscription.
+
+## D-37. The container is built by `make container` and was not built here
+
+The Dockerfile is a three stage build: production dependencies, the Next.js
+build, and a runtime stage that copies the compiled application plus the
+migrations, the workflow definitions and the fixtures, because those are data the
+ledger reads at run time rather than build artefacts. It runs as an unprivileged
+user and health checks `/api/health`.
+
+The image could not be built in this environment: Docker had 21GB of unrelated
+images already and ran out of disk part way through the build stage, twice, and
+deleting somebody else's images is not this build's call. What was verified
+instead is the thing the Dockerfile's runtime stage actually depends on: the
+production build succeeds, `npm run start` serves, and `/api/health` reports
+`environment: azure, chat: teams, auth: entra, durability: database_queue,
+telemetry: otlp` when the Azure environment variables are set.
+
+## D-38. The statement of what leaves the boundary is generated, not written
+
+`dataLeavingTheBoundary()` reads the configuration and says what actually leaves:
+which model provider, which chat surface, whether traces go anywhere, whether a
+queue service is used. It is written into every signed audit archive. A document
+that says what leaves the boundary drifts from the deployment; a function that
+reads the deployment cannot.

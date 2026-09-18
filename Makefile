@@ -1,4 +1,4 @@
-.PHONY: dev build migrate seed demo audit rehearse memory providers test typecheck lint gate clean fresh
+.PHONY: dev build migrate seed demo audit rehearse memory providers parity container test typecheck lint gate clean fresh
 
 dev:
 	npm run dev
@@ -32,6 +32,14 @@ memory:
 providers:
 	npx tsx scripts/gate_providers.ts
 
+## The same commit under the Vercel and the Azure configurations, compared.
+parity:
+	npx tsx scripts/parity.ts
+
+## Build the container the customer cloud path deploys.
+container:
+	docker build -t work-ledger:$$(git rev-parse --short HEAD) .
+
 test:
 	npm run test
 
@@ -49,7 +57,7 @@ lint:
 ##   integrity suite. Set DATABASE_URL to run it against a Neon branch instead of
 ##   the embedded database.
 ##
-gate: typecheck lint test fresh demo rehearse memory providers
+gate: typecheck lint test fresh demo rehearse memory providers parity
 	@echo ""
 	@echo "gate: green"
 
