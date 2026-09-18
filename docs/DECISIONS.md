@@ -441,3 +441,28 @@ rather than into a silent gap.
 `evidence_present failed` told whoever picked the row up next nothing they could
 act on. A failure whose details name what is missing now says so:
 "this row still needs desk_assignment".
+
+## D-43. The ask surface answers only from what it can show
+
+Every answer carries what it came from: a row with a link to it, or a fact with
+the document and the span it was read from. A question about the world goes
+through the citation gate, which reopens every cited span before the answer
+leaves; if a span does not reopen the answer says so and quotes nothing. A question
+the surface cannot place gets one clarifying question rather than a guess, and a
+question whose facts the asker may not see gets an answer that says how many items
+were withheld rather than one that quietly omits them.
+
+Composing the answer is deterministic here for the same reason as D-17 and D-4:
+there is no model key in this build and the gate has to be deterministic. What is
+load bearing is not the prose, it is that the answer cannot contain anything that
+is not in the bundle, and that is a property of where the text comes from rather
+than of which model writes it.
+
+## D-44. An outside person is a worker, and their edits are theirs
+
+Sharing a row across organizations creates a worker for the person it is shared
+with, because everything that touches a row is a worker. Their edit is a cell
+transition with their identity on it, their organization is recorded on the grant,
+and the grant itself lands in `signals` marked as crossing an organization. A
+grant never reaches further than the granter's own scopes, and the state machine
+does not care which organization an actor belongs to: the same invariants apply.

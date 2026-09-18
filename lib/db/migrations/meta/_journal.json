@@ -36,6 +36,13 @@
       "when": 1789765497580,
       "tag": "0004_worker_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789766261607,
+      "tag": "0005_shares_and_ask",
+      "breakpoints": true
     }
   ]
 }

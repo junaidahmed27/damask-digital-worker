@@ -339,6 +339,72 @@ export const connectorEvents = pgTable("connector_events", {
 });
 
 /**
+ * A share. A sheet or a single row shared with a person in the organization or,
+ * by explicit grant, with a person at another one. The scope of the grant is
+ * recorded, and so is who granted it, because a cross organization row is the
+ * first real test of whether a contract travels.
+ */
+export const shares = pgTable(
+  "shares",
+  {
+    id: id(),
+    subject: text("subject").$type<"sheet" | "row">().notNull(),
+    subjectId: text("subject_id").notNull(),
+    /** The worker the share is to; created for an outside person if they are new. */
+    granteeId: text("grantee_id").notNull(),
+    granteeOrgId: text("grantee_org_id"),
+    /** What they may do: read, comment or edit. */
+    access: text("access").$type<"read" | "comment" | "edit">().notNull().default("read"),
+    /** The scopes this grant reaches, which is never more than the granter holds. */
+    scopes: jsonb("scopes").$type<string[]>().notNull().default(sql`'["org"]'::jsonb`),
+    grantedBy: text("granted_by").notNull(),
+    reason: text("reason"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: now(),
+  },
+  (t) => [
+    index("shares_subject").on(t.subject, t.subjectId),
+    index("shares_grantee").on(t.granteeId),
+  ],
+);
+
+/** A template published to an organization's library from a sheet that worked. */
+export const templates = pgTable(
+  "templates",
+  {
+    id: id(),
+    orgId: text("org_id"),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    definition: jsonb("definition").$type<Record<string, unknown>>().notNull(),
+    fromSheetId: text("from_sheet_id"),
+    publishedBy: text("published_by").notNull(),
+    visibility: text("visibility").$type<"org" | "public">().notNull().default("org"),
+    timesUsed: integer("times_used").notNull().default(0),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("templates_org_name").on(t.orgId, t.name)],
+);
+
+/** A question asked of the ledger, its bundle, its answer, and what happened next. */
+export const questions = pgTable("questions", {
+  id: id(),
+  askedBy: text("asked_by").notNull(),
+  text: text("text").notNull(),
+  kind: text("kind").notNull(),
+  bundleHash: text("bundle_hash"),
+  answer: text("answer").notNull(),
+  citations: jsonb("citations").$type<Record<string, unknown>[]>().notNull().default(sql`'[]'::jsonb`),
+  clarification: text("clarification"),
+  askedAt: timestamp("asked_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Share = typeof shares.$inferSelect;
+export type Template = typeof templates.$inferSelect;
+export type Question = typeof questions.$inferSelect;
+
+/**
  * A worker's token. An external bot, a coding agent or a vendor's agent holds one
  * of these and is subject to every invariant a built in agent is. Only the hash
  * is stored, so the ledger cannot leak a token it was given.
