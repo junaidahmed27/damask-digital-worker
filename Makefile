@@ -1,4 +1,4 @@
-.PHONY: dev build migrate seed demo audit rehearse test typecheck lint gate clean fresh
+.PHONY: dev build migrate seed demo audit rehearse memory test typecheck lint gate clean fresh
 
 dev:
 	npm run dev
@@ -24,6 +24,10 @@ audit:
 rehearse:
 	npx tsx scripts/rehearse.ts
 
+## The seven stage pass over the corpus, then the integrity suite.
+memory:
+	npx tsx scripts/memory.ts --twice
+
 test:
 	npm run test
 
@@ -36,11 +40,12 @@ lint:
 ##
 ## The gate. Nothing is committed red.
 ##   typecheck, lint, the state machine tests, the check pack tests, a headless
-##   run of the Day One scenario, and a rehearsal of the current definition
-##   against that run with a zero diff on verified rows. Set DATABASE_URL to run
-##   it against a Neon branch instead of the embedded database.
+##   run of the Day One scenario, a rehearsal of the current definition against
+##   that run with a zero diff on verified rows, and the memory pipeline with its
+##   integrity suite. Set DATABASE_URL to run it against a Neon branch instead of
+##   the embedded database.
 ##
-gate: typecheck lint test fresh demo rehearse
+gate: typecheck lint test fresh demo rehearse memory
 	@echo ""
 	@echo "gate: green"
 

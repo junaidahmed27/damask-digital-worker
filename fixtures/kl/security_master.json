@@ -1,0 +1,44 @@
+{
+  "note": "The deal spine. Every deal has an identifier; resolution starts here. Entirely invented; no real company, person or instrument appears in this corpus.",
+  "deals": [
+    {
+      "deal_id": "KLD-2024-0118",
+      "name": "Project Meridian",
+      "borrower": "Meridian Holdco II",
+      "aliases": ["Meridian", "Meridian Holdco", "Project Meridian", "Meridian II"],
+      "sponsor": "Calder Peak Partners",
+      "sector": "specialty pharma",
+      "fund": "core lending fund",
+      "status": "closed",
+      "closed_on": "2024-03-14"
+    },
+    {
+      "deal_id": "KLD-2025-0042",
+      "name": "Project Brightwater",
+      "borrower": "Brightwater Utilities Group",
+      "aliases": ["Brightwater", "Brightwater Utilities", "Project Brightwater"],
+      "sponsor": "Ashfield Capital",
+      "sector": "regulated utilities",
+      "fund": "core lending fund",
+      "status": "closed",
+      "closed_on": "2025-06-30"
+    },
+    {
+      "deal_id": "KLD-2025-0097",
+      "name": "Project Castellan",
+      "borrower": "Castellan Diagnostics",
+      "aliases": ["Castellan", "Castellan Diagnostics", "Project Castellan"],
+      "sponsor": "Calder Peak Partners",
+      "sector": "specialty pharma",
+      "fund": "private credit fund II",
+      "status": "passed",
+      "passed_on": "2025-09-02"
+    }
+  ],
+  "people": [
+    {"id": "p_hale", "name": "Rowan Hale", "role": "sourcing_lead", "internal": true},
+    {"id": "p_ibarra", "name": "Sofia Ibarra", "role": "credit_analyst", "internal": true},
+    {"id": "p_nakamura", "name": "Kenji Nakamura", "role": "portfolio_manager", "internal": true},
+    {"id": "p_dunne", "name": "Aoife Dunne", "role": "counsel", "internal": false, "firm": "Harrow & Dunne"}
+  ]
+}

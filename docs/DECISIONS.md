@@ -249,3 +249,31 @@ evidence and outputs are copied from the recording and the row is moved through
 the same states, and then the check that runs is the one in the version under
 test. That is the point of the exercise, and it is why a change to a check shows
 up as exactly the rows it affects.
+
+## D-25. The vector arm is a deterministic bag of words, behind the same interface
+
+The plan names bge-m3 under HNSW for the vector arm. There is no model to run in
+this build and the gate has to be deterministic, so `embed()` is a hashed bag of
+words producing a normalised 256 dimension vector, ranked by cosine exactly as a
+real embedding would be. It is a real vector arm with a weak model rather than a
+stub: the ranking works, the tests measure it, and swapping in bge-m3 is a change
+to one function.
+
+## D-26. Events are processed in the order the world produced them
+
+The backfill lands every file first and then works through them ordered by
+`occurred_at`, not by path. Processing in filename order let Amendment No. 1 land
+before the agreement it amends, so the older pricing superseded the newer and the
+memory's current view of the deal was wrong. Record time is when the ledger learnt
+a fact; valid time is when it was true; and a backfill has to respect the second
+or the two clocks disagree from the start.
+
+## D-27. Quarantine is a third outcome of resolution, counted separately
+
+Stage 4 has three honest outcomes: linked, explicitly orphaned, and quarantined
+for a person because two deals could both be right. The integrity report counts
+all three as accounted for, which is the plan's 95 percent, and reports
+`linked or orphaned` beside it so quarantine cannot be used to flatter the number.
+On the fixture corpus that is 100 percent accounted for and 92.9 percent linked or
+orphaned, the difference being one mail thread that discusses one deal and
+mentions another.

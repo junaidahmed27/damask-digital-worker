@@ -1,0 +1,18 @@
+AMENDMENT NO. 1 TO CREDIT AGREEMENT
+Project Meridian / Meridian Holdco II
+Deal ID: KLD-2024-0118
+Dated 9 May 2025
+
+The parties agree that the Credit Agreement dated 14 March 2024 is amended as follows.
+
+1. Section 6.1 is amended so that the Maximum Total Net Leverage covenant level
+   is 6.25 to 1.00 for the fiscal quarters ending 30 June 2025 and 30 September
+   2025, reverting to 5.75 to 1.00 thereafter.
+
+2. Section 2.4 is amended so that interest accrues at SOFR plus 625 basis points
+   with effect from 1 July 2025.
+
+3. Section 7.2 is amended so that the Restricted Payments Basket is reduced to
+   USD 5,000,000 in any fiscal year.
+
+All other terms remain in full force and effect.

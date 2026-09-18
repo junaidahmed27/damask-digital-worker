@@ -338,6 +338,154 @@ export const connectorEvents = pgTable("connector_events", {
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ---------------------------------------------------------------- memory */
+
+/** An entity the memory knows: a deal, a borrower, a person, a theme. */
+export const entities = pgTable(
+  "entities",
+  {
+    id: id(),
+    kind: text("kind").notNull(),
+    name: text("name").notNull(),
+    identifiers: jsonb("identifiers").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+    aliases: jsonb("aliases").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    scope: text("scope").notNull().default("org"),
+    /** Entity birth is gated: an identifier or a person, never a guess. */
+    bornFrom: text("born_from").notNull().default("identifier"),
+    createdAt: now(),
+  },
+  (t) => [index("entities_kind_name").on(t.kind, t.name)],
+);
+
+/** The record: every document, message, CRM change and feed item, immutable. */
+export const sourceEvents = pgTable(
+  "source_events",
+  {
+    id: id(),
+    source: text("source").notNull(),
+    sourceId: text("source_id").notNull(),
+    contentHash: text("content_hash").notNull(),
+    kind: text("kind").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+    blobRef: text("blob_ref"),
+    bytes: integer("bytes").notNull().default(0),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    scope: text("scope").notNull().default("org"),
+  },
+  (t) => [uniqueIndex("source_events_source_id").on(t.source, t.sourceId, t.contentHash)],
+);
+
+/** Stage 2: the parsed text, with the offsets every downstream fact cites. */
+export const parsedText = pgTable("parsed_text", {
+  id: id(),
+  eventId: text("event_id").notNull(),
+  text: text("text").notNull(),
+  characters: integer("characters").notNull().default(0),
+  lines: jsonb("lines").$type<{ n: number; start: number; end: number }[]>().notNull().default(sql`'[]'::jsonb`),
+  parser: text("parser").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Stage 3: what kind of document this is, how sensitive, and how sure. */
+export const classifications = pgTable("classifications", {
+  id: id(),
+  eventId: text("event_id").notNull(),
+  docType: text("doc_type").notNull(),
+  sensitivity: text("sensitivity").notNull().default("normal"),
+  confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
+  candidateDeals: jsonb("candidate_deals").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  needsReview: boolean("needs_review").notNull().default(false),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Stage 4: every event linked to entities, or explicitly orphaned, with why. */
+export const entityLinks = pgTable(
+  "entity_links",
+  {
+    id: id(),
+    eventId: text("event_id").notNull(),
+    entityId: text("entity_id"),
+    method: text("method").$type<"identifier" | "inherited" | "alias" | "model" | "orphan">().notNull(),
+    confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    quarantined: boolean("quarantined").notNull().default(false),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("entity_links_event").on(t.eventId),
+    uniqueIndex("entity_links_event_entity").on(t.eventId, t.entityId),
+  ],
+);
+
+/** Stage 5: typed, bi temporal facts, each with its provenance span. */
+export const facts = pgTable(
+  "facts",
+  {
+    id: id(),
+    entityId: text("entity_id").notNull(),
+    attribute: text("attribute").notNull(),
+    value: jsonb("value").notNull(),
+    valueType: text("value_type").notNull(),
+    unit: text("unit"),
+    /** Valid time: when the fact was true in the world. */
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    /** Record time: when the ledger learnt it. */
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    sourceEventId: text("source_event_id").notNull(),
+    spanStart: integer("span_start").notNull(),
+    spanEnd: integer("span_end").notNull(),
+    confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
+    scope: text("scope").notNull().default("org"),
+  },
+  (t) => [
+    index("facts_entity_attribute").on(t.entityId, t.attribute),
+    index("facts_source").on(t.sourceEventId),
+  ],
+);
+
+/** Stage 6: the retrieval projection. */
+export const chunks = pgTable(
+  "chunks",
+  {
+    id: id(),
+    eventId: text("event_id").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    text: text("text").notNull(),
+    spanStart: integer("span_start").notNull(),
+    spanEnd: integer("span_end").notNull(),
+    entityIds: jsonb("entity_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    scope: text("scope").notNull().default("org"),
+    embedding: jsonb("embedding").$type<number[]>().notNull().default(sql`'[]'::jsonb`),
+  },
+  (t) => [index("chunks_event_ordinal").on(t.eventId, t.ordinal)],
+);
+
+/** Decisions the firm made, reconstructed from memos and threads. */
+export const decisionRecords = pgTable("decision_records", {
+  id: id(),
+  entityId: text("entity_id").notNull(),
+  outcome: text("outcome").notNull(),
+  rationale: text("rationale").notNull(),
+  decidedBy: text("decided_by"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  sourceEventId: text("source_event_id").notNull(),
+  spanStart: integer("span_start").notNull(),
+  spanEnd: integer("span_end").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Entity = typeof entities.$inferSelect;
+export type SourceEvent = typeof sourceEvents.$inferSelect;
+export type ParsedText = typeof parsedText.$inferSelect;
+export type Classification = typeof classifications.$inferSelect;
+export type EntityLink = typeof entityLinks.$inferSelect;
+export type Fact = typeof facts.$inferSelect;
+export type Chunk = typeof chunks.$inferSelect;
+export type DecisionRecord = typeof decisionRecords.$inferSelect;
+
 export type ContractState =
   | "drafted"
   | "contracted"

@@ -1,0 +1,26 @@
+CREDIT AGREEMENT
+Project Brightwater / Brightwater Utilities Group
+Deal ID: KLD-2025-0042
+Dated 30 June 2025
+
+PARTIES
+Borrower: Brightwater Utilities Group
+Sponsor: Ashfield Capital
+Administrative Agent: Northbank Trust Company
+
+SECTION 2. THE FACILITIES
+2.1 Facility Type. A senior secured term loan B facility.
+2.2 Commitment. The aggregate commitment is USD 240,000,000.
+2.3 Pricing. Interest accrues at SOFR plus 450 basis points.
+2.4 Floor. SOFR shall not be deemed less than 0.75 percent per annum.
+2.5 Maturity. The Termination Date is 30 June 2032.
+
+SECTION 6. FINANCIAL COVENANTS
+6.1 Maximum Total Net Leverage. 4.50 to 1.00.
+6.2 Minimum Interest Coverage. 3.00 to 1.00.
+
+SECTION 7. NEGATIVE COVENANTS
+7.1 General Basket. USD 40,000,000.
+7.2 Restricted Payments Basket. USD 20,000,000 in any fiscal year.
+7.4 Most Favoured Nation. 75 basis points, no sunset.
+7.5 Change of Control. A Change of Control is an Event of Default.

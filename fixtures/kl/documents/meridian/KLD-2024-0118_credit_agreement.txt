@@ -1,0 +1,38 @@
+CREDIT AGREEMENT
+Project Meridian / Meridian Holdco II
+Deal ID: KLD-2024-0118
+Dated 14 March 2024
+
+PARTIES
+Borrower: Meridian Holdco II
+Sponsor: Calder Peak Partners
+Administrative Agent: Northbank Trust Company
+Counsel to the Lenders: Harrow & Dunne
+
+SECTION 2. THE FACILITIES
+2.1 Facility Type. A senior secured unitranche term loan facility.
+2.2 Commitment. The aggregate commitment is USD 185,000,000.
+2.3 Drawn at closing. USD 160,000,000.
+2.4 Pricing. Interest accrues at SOFR plus 575 basis points.
+2.5 Floor. SOFR shall not be deemed less than 1.00 percent per annum.
+2.6 Maturity. The Termination Date is 14 March 2030.
+
+SECTION 6. FINANCIAL COVENANTS
+6.1 Maximum Total Net Leverage. The Borrower shall not permit Total Net Leverage
+    as of the last day of any fiscal quarter to exceed 5.75 to 1.00.
+6.2 Minimum Interest Coverage. The Borrower shall maintain Interest Coverage of
+    not less than 2.00 to 1.00.
+6.3 Definitions. "Consolidated EBITDA" means net income before interest, taxes,
+    depreciation and amortisation, plus run rate cost savings not to exceed
+    20 percent of Consolidated EBITDA for the relevant period.
+
+SECTION 7. NEGATIVE COVENANTS
+7.1 General Basket. USD 25,000,000.
+7.2 Restricted Payments Basket. USD 15,000,000 in any fiscal year.
+7.3 Investments Basket. USD 30,000,000.
+7.4 Most Favoured Nation. 50 basis points, with a 12 month sunset.
+7.5 Change of Control. A Change of Control is an Event of Default.
+
+SECTION 8. MANDATORY PREPAYMENTS
+8.1 Excess Cash Flow. 50 percent, stepping to 25 percent at Total Net Leverage
+    below 4.00 to 1.00.

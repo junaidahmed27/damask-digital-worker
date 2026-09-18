@@ -1,0 +1,10 @@
+sheet,cell,label,value
+Covenants,B4,Consolidated EBITDA LTM,31400000
+Covenants,B5,Total Net Debt,188900000
+Covenants,B6,Total Net Leverage,6.02
+Covenants,B7,Covenant level as amended,6.25
+Covenants,B8,Headroom (turns),0.23
+Covenants,B9,Interest Coverage,2.14
+Liquidity,C4,Cash,9200000
+Liquidity,C5,Undrawn revolver,9000000
+Liquidity,C6,Total liquidity,18200000
