@@ -3,7 +3,7 @@ import type { LedgerEventName, LedgerEvents } from "@/lib/runtime/events";
 import type { LedgerFunction, Step } from "@/lib/runtime/step";
 import { createRuntime } from "@/lib/runtime/runtime";
 import { agentStepFunction } from "./agentStep";
-import { approvalsFunction } from "./approvals";
+import { approvalsFunction, settleApprovalFunction } from "./approvals";
 import { planFunction } from "./plan";
 import { projectFunction } from "./project";
 import { revokeFunction } from "./revoke";
@@ -20,6 +20,7 @@ export const ledgerFunctions = [
   agentStepFunction,
   runChecksFunction,
   approvalsFunction,
+  settleApprovalFunction,
   unblockFunction,
   deadlinesFunction,
   revokeFunction,

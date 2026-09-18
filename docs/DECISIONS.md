@@ -125,3 +125,20 @@ bundler, which cannot resolve a directory and fails the build of any route that
 reaches the fixtures. `lib/paths.ts` resolves the fixtures, the workflows and the
 migrations from `process.cwd()`, overridable with `LEDGER_ROOT`. The app, the
 scripts and the tests all run from the repository root.
+
+## D-14. The approval is settled by its own function; waitForEvent watches the window
+
+The plan has the approvals function park on `step.waitForEvent("approval.decided")`
+and settle the decision when it wakes. Two things broke that. A press by someone
+who is not the named approver is refused by invariant 4, and the refusal consumed
+the wait, leaving the row stuck in `awaiting_approval` for ever. And a decision
+can arrive in a different process from the one that posted the card, which a
+parked in memory waiter cannot see.
+
+So the row's own state is what a waiting row is, and the two concerns are split:
+`approvals` posts the card and watches the escalation window, re parking while the
+row is still `awaiting_approval`, and `settleApproval`, triggered by
+`approval/decided`, is the single writer that moves it and tells whoever pressed
+why a refusal did not take. `waitForEvent` is still what watches the window, as
+the plan asks, and nothing depends on a function being parked in the process the
+decision happens to land in.

@@ -1,0 +1,53 @@
+# The Slack app for the Work Ledger.
+#
+# Create the app from this manifest, install it to the workspace, then set
+# SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET and point the three URLs at the
+# deployment. With those two variables unset the ledger runs with the chat
+# simulator and every post lands in the record instead of in Slack.
+display_information:
+  name: Work Ledger
+  description: A durable record of work that people and agents share
+  background_color: "#2f5d50"
+  long_description: >
+    The Work Ledger keeps one record of a piece of work that people and agents
+    both execute from. Every row reaches done only through a passing check with
+    its evidence attached, approvals are resolved by the named person and never
+    by an agent, and every surface, this one included, is a projection of the
+    same rows.
+
+features:
+  bot_user:
+    display_name: ledger
+    always_online: true
+  slash_commands:
+    - command: /ledger
+      url: https://REPLACE.vercel.app/api/slack/commands
+      description: Start a plan, or ask about the work
+      usage_hint: 'new "Priya starts Monday as a sales engineer in Austin"'
+      should_escape: false
+
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - chat:write.customize
+      - channels:history
+      - channels:read
+      - app_mentions:read
+      - reactions:read
+      - users:read
+      - commands
+
+settings:
+  event_subscriptions:
+    request_url: https://REPLACE.vercel.app/api/slack/events
+    bot_events:
+      - app_mention
+      - message.channels
+      - reaction_added
+  interactivity:
+    is_enabled: true
+    request_url: https://REPLACE.vercel.app/api/slack/interactive
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

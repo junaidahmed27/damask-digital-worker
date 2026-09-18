@@ -159,6 +159,16 @@ export class ConnectorRegistry {
     const op = connector.ops[opName];
     if (!op) throw new ConnectorRefused("unknown_op", `${connectorId} has no op ${opName}`, { qualified });
 
+    // Invariant 6 reaches the connectors too: a revoked worker touches nothing.
+    // This is what makes "a revoked agent stops posting" a property of the kit
+    // rather than something each surface has to remember to check.
+    if (ctx.actor.status === "revoked") {
+      throw new ConnectorRefused("not_permitted", `${ctx.actor.name} is revoked and cannot reach ${qualified}`, {
+        actor: ctx.actor.id,
+        qualified,
+      });
+    }
+
     if (op.write && !ctx.actor.canTouch.includes(qualified)) {
       throw new ConnectorRefused(
         "not_permitted",
