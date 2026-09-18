@@ -1,0 +1,34 @@
+{
+  "note": "A batch sheet: one row per hire, the steps as columns. The address_check column is an agent_step, so filling it runs the Shipper once per row against the HRIS as of today. delivery_ready is a formula over the cells beside it.",
+  "name": "Hires starting this month",
+  "columns": [
+    { "name": "hire", "type": "text" },
+    { "name": "location", "type": "text" },
+    { "name": "laptop_value_usd", "type": "number" },
+    {
+      "name": "address_check",
+      "type": "agent_step",
+      "config": {
+        "owner": "shipper",
+        "check": "evidence_present",
+        "evidence": ["hris_worker"],
+        "goal": "Read the hire's address from the HRIS as of today and report whether the carrier serves it."
+      }
+    },
+    {
+      "name": "delivery_ready",
+      "type": "formula",
+      "config": { "formula": "=IF(address_check.serviceable == true, \"ready\", \"check the address\")" }
+    },
+    {
+      "name": "fleet_value",
+      "type": "formula",
+      "config": { "formula": "=SUM(rows.laptop_value_usd)" }
+    }
+  ],
+  "rows": [
+    { "id": "row_priya", "kind": "hire", "fields": { "hire": "priya", "location": "Austin", "laptop_value_usd": 2400 } },
+    { "id": "row_jordan", "kind": "hire", "fields": { "hire": "jordan", "location": "Austin", "laptop_value_usd": 2400 } },
+    { "id": "row_maya", "kind": "hire", "fields": { "hire": "maya", "location": "Austin", "laptop_value_usd": 2900 } }
+  ]
+}

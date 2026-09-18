@@ -3,6 +3,7 @@ import { runAgent } from "@/lib/agents/runtime";
 import type { Db } from "@/lib/db/client";
 import { contracts, workers, workflows, runs, type Contract, type Worker } from "@/lib/db/schema";
 import { setOutputs } from "@/lib/ledger/contracts";
+import { writeAgentStepCell } from "@/lib/sheet/agentCell";
 import { move } from "@/lib/runtime/move";
 import { event } from "@/lib/runtime/events";
 import { defineFunction } from "@/lib/runtime/step";
@@ -93,6 +94,10 @@ export const agentStepFunction = defineFunction({
     if (outcome.kind === "submitted") {
       await step.run(`outputs:${contractId}:${current.attempts}`, () =>
         setOutputs(db, contractId, { ...outcome.outputs, note: outcome.note }),
+      );
+      // A cell of work writes its result back into the cell it came from.
+      await step.run(`cell:${contractId}:${current.attempts}`, () =>
+        writeAgentStepCell(db, current, owner, outcome.outputs),
       );
       const moved = await step.run(`submit:${contractId}:${current.attempts}`, () =>
         move(runtime, step, {

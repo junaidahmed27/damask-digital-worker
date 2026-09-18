@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { contracts, projections, workers } from "@/lib/db/schema";
 import { listEvidence } from "@/lib/ledger/contracts";
+import { refreshPlanRow } from "@/lib/sheet/refresh";
 import { defineFunction } from "@/lib/runtime/step";
 
 /**
@@ -78,12 +79,14 @@ export const projectFunction = defineFunction({
       }
     });
 
-    await step.run(`sheet:${contractId}:${to}`, () =>
-      db
+    await step.run(`sheet:${contractId}:${to}`, async () => {
+      await db
         .update(projections)
         .set({ lastSyncedAt: runtime.now() })
-        .where(and(eq(projections.contractId, contractId), eq(projections.surface, "sheet_row"))),
-    );
+        .where(and(eq(projections.contractId, contractId), eq(projections.surface, "sheet_row")));
+      // The sheet is a projection of the same rows, so a move updates its cells.
+      await refreshPlanRow(db, contract.runId, contractId);
+    });
 
     return { contractId, to };
   },

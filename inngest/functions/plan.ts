@@ -7,6 +7,7 @@ import { event } from "@/lib/runtime/events";
 import { defineFunction, type Runtime } from "@/lib/runtime/step";
 import { workflowDefinitionSchema, type WorkflowDefinition } from "@/lib/workflow/definition";
 import { agentWorkerId } from "@/lib/seed";
+import { materializePlanSheet } from "@/lib/sheet/model";
 
 /**
  * run/created -> plan.
@@ -30,7 +31,12 @@ export const planFunction = defineFunction({
     const created = await step.run(`rows:${runId}`, () => createRows(runtime, runId, definition));
     await step.run(`surfaces:${runId}`, () => openSurfaces(runtime, runId, definition, created.rowIds));
 
-    return { runId, rows: created.rowIds.length };
+    // The sheet is not a view of the plan; the sheet is the plan.
+    const sheet = await step.run(`sheet:${runId}`, () =>
+      materializePlanSheet(runtime.db, runId, { name: definition.metadata.name, actorId: definition.metadata.owner }),
+    );
+
+    return { runId, rows: created.rowIds.length, sheetId: sheet.id };
   },
 });
 

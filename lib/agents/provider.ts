@@ -182,7 +182,9 @@ export function createScriptedProvider(scripts?: AgentScripts): ModelProvider {
       if (!context) throw new Error("the scripted provider needs a context");
 
       const forWorker = loaded[context.worker] ?? {};
-      const forRow = forWorker[context.rowKey];
+      // A cell of work in a batch sheet has the key "<column>:<row id>", so a
+      // script written for the column applies to every row of that column.
+      const forRow = forWorker[context.rowKey] ?? forWorker[context.rowKey.split(":")[0] ?? ""];
       if (!forRow) {
         return {
           text: `no script for ${context.worker} on ${context.rowKey}`,
