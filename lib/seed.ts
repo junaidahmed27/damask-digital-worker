@@ -109,17 +109,9 @@ export async function seed(handle: DbHandle): Promise<SeedResult> {
       })
       .onConflictDoNothing();
 
-    for (const inv of def.invariants) {
-      await db
-        .insert(schema.invariants)
-        .values({
-          id: `inv_${def.metadata.name}_${inv.name}`,
-          name: inv.name,
-          expression: inv.expr,
-          severity: inv.severity,
-        })
-        .onConflictDoNothing();
-    }
+    // A workflow's invariants are copied onto each run by the plan function, so
+    // they are scoped to the rows they judge. Seeding them unscoped would leave
+    // rows that never match anything.
   }
 
   for (const c of CONNECTOR_ROWS) {

@@ -68,9 +68,12 @@ export function evaluateExpression(expression: string, ctx: InvariantContext): b
   if (implication) {
     const [, antecedent, consequent] = implication;
     const left = evaluateTerm(antecedent ?? "", ctx);
+    // The invariant says nothing until its antecedent fires.
     if (left !== true) return null;
-    const right = evaluateTerm(consequent ?? "", ctx);
-    return right === null ? null : right;
+    // Once it has, the consequent must be demonstrably true. A consequent that
+    // cannot be shown is not satisfied: "no email leaves without approval" is
+    // violated by an email with no approval recorded, not excused by it.
+    return evaluateTerm(consequent ?? "", ctx) === true;
   }
 
   return evaluateTerm(expression, ctx);

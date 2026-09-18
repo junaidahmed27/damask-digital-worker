@@ -205,3 +205,35 @@ A message that matches no row still has to go somewhere, because losing it is
 worse than filing it imprecisely. Capture creates an `Inbox` batch sheet on first
 use and lands the record there with its attachments and digests, where a rule or
 a person can move it later. This is the plan's "an inbox sheet holds threads".
+
+## D-21. A block invariant must be demonstrably satisfied, not merely unrefuted
+
+`welcome_email.outputs.sent => welcome_email.approved_by.kind == person` did
+nothing useful at first: an email marked sent with no approval recorded left the
+consequent unresolvable, the evaluator returned "says nothing", and the
+transition went through. That is the wrong reading for a safety invariant. Once
+an implication's antecedent fires, the consequent must now evaluate to true for
+the invariant to hold; a consequent that cannot be shown is a violation. An
+invariant whose antecedent has not fired still says nothing, so an invariant
+about one row stays silent on every other.
+
+The approvals path therefore records `approved_by` as `{id, kind}` rather than a
+bare id, so a row can actually show that a person approved it. Only a person can
+reach that path, so the kind states what the row can prove rather than asserting
+something new.
+
+## D-22. A workflow's invariants are copied onto each run
+
+`seed()` was writing each workflow's invariants with no `run_id` and no
+`sheet_id`, and `transition()` looks invariants up by run, so every invariant a
+workflow declared was inert. The plan function now copies them onto the run it is
+planning, which is the scope they judge. An invariant that belongs to nothing
+fires on nothing, and that is a silent failure rather than a safe default.
+
+## D-23. A rule's condition is the formula language
+
+A rule's condition is evaluated by the same parser the formula columns use, with
+`DAYS_SINCE` added. A person who can read a formula in a column can read the rule
+that chases the row, and there is one expression language in the product rather
+than two. A rule whose condition cannot be parsed does not fire and does not stop
+the other rules on the sheet.

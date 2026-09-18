@@ -381,3 +381,7 @@ export type Cell = typeof cells.$inferSelect;
 export type Proposal = typeof proposals.$inferSelect;
 export type LedgerRecord = typeof records.$inferSelect;
 export type CellComment = typeof cellComments.$inferSelect;
+export type Rule = typeof rules.$inferSelect;
+export type Invariant = typeof invariants.$inferSelect;
+export type Signal = typeof signals.$inferSelect;
+export type RunHistory = typeof runsHistory.$inferSelect;

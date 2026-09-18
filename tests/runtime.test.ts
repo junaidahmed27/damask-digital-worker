@@ -159,7 +159,10 @@ describe("WP-3 the Day One run", () => {
     expect(awaiting).toBeDefined();
     const verified = history.find((t) => t.toState === "verified");
     expect(verified?.actorId).toBe("dan");
-    expect(verified?.payload.approved_by).toBe("dan");
+    // The payload records who approved and that they are a person, which is what
+    // the "no email leaves without approval" invariant reads.
+    expect(verified?.payload.approved_by).toEqual({ id: "dan", kind: "person" });
+    expect(verified?.payload.approved_by_id).toBe("dan");
   });
 
   it("holds the welcome email blocked until every other row is settled", async () => {

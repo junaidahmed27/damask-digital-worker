@@ -7,6 +7,7 @@ import { approvalsFunction, settleApprovalFunction } from "./approvals";
 import { planFunction } from "./plan";
 import { projectFunction } from "./project";
 import { revokeFunction } from "./revoke";
+import { rulesOnCellFunction, rulesOnRecordFunction, rulesSweepFunction } from "./rules";
 import { runChecksFunction } from "./runChecks";
 import { deadlinesFunction, unblockFunction } from "./unblock";
 
@@ -25,6 +26,9 @@ export const ledgerFunctions = [
   deadlinesFunction,
   revokeFunction,
   projectFunction,
+  rulesOnRecordFunction,
+  rulesOnCellFunction,
+  rulesSweepFunction,
 ] as unknown as LedgerFunction[];
 
 /** Inngest's step tooling satisfies the Step interface; this is the adapter. */

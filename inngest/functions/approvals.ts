@@ -150,7 +150,9 @@ export const settleApprovalFunction = defineFunction({
           to: "verified",
           actorId,
           reason: reason ?? "approved",
-          payload: { approved_by: actorId },
+          // Who approved, and that they are a person. Only a person can reach
+          // this path, so recording the kind states what the row can prove.
+          payload: { approved_by: { id: actorId, kind: "person" }, approved_by_id: actorId },
         }),
       );
       if (!moved.ok) {

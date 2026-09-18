@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { contracts, projections, runs, workers, workflows, type Worker } from "@/lib/db/schema";
+import { contracts, invariants, projections, runs, workers, workflows, type Worker } from "@/lib/db/schema";
 import { fixture } from "@/lib/fixtures";
 import { newId } from "@/lib/ids";
 import { event } from "@/lib/runtime/events";
@@ -83,6 +83,19 @@ async function createRows(runtime: Runtime, runId: string, definition: WorkflowD
   }));
 
   if (rows.length > 0) await db.insert(contracts).values(rows);
+
+  // The workflow's invariants are scoped to this run, so transition() finds them.
+  // An invariant with no run is an invariant that never fires.
+  for (const invariant of definition.invariants) {
+    await db.insert(invariants).values({
+      id: newId("inv"),
+      runId,
+      name: invariant.name,
+      expression: invariant.expr,
+      severity: invariant.severity,
+    });
+  }
+
   runtime.log(`planned ${rows.length} rows for ${definition.metadata.name}`, { runId });
   return { rowIds: rows.map((r) => r.id) };
 }

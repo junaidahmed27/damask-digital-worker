@@ -8,6 +8,10 @@
  *   =AS_OF(covenant_tests.headroom, last_quarter)
  *   =SUM(rows.amount)
  *   =IF(confidence < 0.6, "escalate", "auto")
+ *   =DAYS_SINCE(last_reply) > 7
+ *
+ * The same evaluator reads a rule's condition, so a rule a person writes and a
+ * formula a person writes are the same language.
  */
 
 export type FormulaValue = string | number | boolean | null | FormulaValue[];
@@ -315,6 +319,16 @@ function call(node: { name: string; args: Node[] }, scope: FormulaScope): Formul
     case "SUM": {
       const values = flatten(args.map((arg) => evaluate(arg, scope)));
       return values.reduce<number>((total, value) => total + toNumber(value), 0);
+    }
+
+    case "DAYS_SINCE": {
+      const reference = args[0];
+      if (!reference) throw new FormulaError("DAYS_SINCE needs a column reference");
+      const value = evaluate(reference, scope);
+      if (typeof value !== "string" && typeof value !== "number") return null;
+      const then = new Date(value);
+      if (Number.isNaN(then.getTime())) return null;
+      return Math.floor((scope.now().getTime() - then.getTime()) / 86_400_000);
     }
 
     case "COUNT":
