@@ -6,6 +6,12 @@ import { evidenceBody, sameSet, type Check } from "./registry";
  * function over the row, its outputs and its evidence. The connector reads the
  * agent made are in the evidence, so a check never calls a system itself and
  * two runs over the same evidence always agree.
+ *
+ * Evidence is append only and accumulates across attempts, so a check reads the
+ * latest item of a kind: after a hand back the newest booking, the newest
+ * lookup and the newest role profile read are the ones that correspond to the
+ * outputs on the row now. Reading the first would compare today's outputs with
+ * the evidence of the attempt that failed.
  */
 
 type Address = {
@@ -23,9 +29,9 @@ export const accessEqualsRoleProfile: Check = {
   pack: "onboarding",
   description: "The groups granted equal the role profile in the HRIS, with no extras.",
   run({ outputs, evidence }) {
-    const profileEvidence = evidence.find((e) => e.kind === "role_profile");
+    const profileEvidence = evidence.findLast((e) => e.kind === "role_profile");
     const profile = evidenceBody<{ groups?: string[] }>(profileEvidence);
-    const log = evidenceBody<{ groups?: string[] }>(evidence.find((e) => e.kind === "provisioning_log"));
+    const log = evidenceBody<{ groups?: string[] }>(evidence.findLast((e) => e.kind === "provisioning_log"));
 
     const expected = profile?.groups;
     const granted = (outputs.granted_groups as string[] | undefined) ?? log?.groups;
@@ -51,7 +57,7 @@ export const addressAsOfToday: Check = {
   pack: "onboarding",
   description: "The delivery address equals the HRIS address as of today, not one taken from a document.",
   run({ outputs, evidence, now }) {
-    const hrisRead = evidence.find(
+    const hrisRead = evidence.findLast(
       (e) => e.sourceConnector === "hris" && (e.kind === "hris_worker" || e.kind === "worker_record"),
     );
     const record = evidenceBody<{ address?: Address; as_of?: string }>(hrisRead);
@@ -86,7 +92,7 @@ export const trackingValid: Check = {
   pack: "onboarding",
   description: "The tracking number on the row resolves in the shipping connector.",
   run({ outputs, evidence }) {
-    const tracking = evidence.find((e) => e.kind === "tracking");
+    const tracking = evidence.findLast((e) => e.kind === "tracking");
     const body = evidenceBody<{ tracking_number?: string; found?: boolean; status?: string }>(tracking);
     const claimed = outputs.tracking_number as string | undefined;
     if (!body) return { passed: false, details: { reason: "no tracking lookup attached as evidence" } };
@@ -105,7 +111,7 @@ export const invitesAccepted: Check = {
   description: "Every first week calendar invite was accepted by the hire.",
   run({ evidence }) {
     const body = evidenceBody<{ invites?: { title: string; accepted: boolean }[] }>(
-      evidence.find((e) => e.kind === "calendar_invites"),
+      evidence.findLast((e) => e.kind === "calendar_invites"),
     );
     const invites = body?.invites ?? [];
     if (invites.length === 0) {
@@ -125,7 +131,7 @@ export const formCompleted: Check = {
     const required = (params.required_fields as string[] | undefined) ?? [];
     const formName = (params.form as string | undefined) ?? "form";
     const fromEvidence = evidenceBody<{ form?: Record<string, unknown> }>(
-      evidence.find((e) => e.kind === `${formName}` || e.kind === "payroll_form" || e.kind === "form"),
+      evidence.findLast((e) => e.kind === `${formName}` || e.kind === "payroll_form" || e.kind === "form"),
     );
     const form = ((outputs.form as Record<string, unknown> | undefined) ?? fromEvidence?.form) ?? {};
     const blank = required.filter((field) => form[field] === undefined || form[field] === null || form[field] === "");
@@ -140,7 +146,7 @@ export const backgroundCheckClearedByHuman: Check = {
   requiresHumanApproval: true,
   description: "The background check result is read and settled by the named HR lead.",
   run({ contract, evidence }) {
-    const report = evidence.find((e) => e.kind === "background_report");
+    const report = evidence.findLast((e) => e.kind === "background_report");
     const body = evidenceBody<{ status?: string; flag?: string; reference?: string }>(report);
     if (!body) return { passed: false, details: { reason: "no background report attached as evidence" } };
     return {

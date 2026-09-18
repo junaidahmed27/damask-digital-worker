@@ -64,9 +64,13 @@ export class CheckRegistry {
   }
 }
 
-/** Reads the first evidence row matching a predicate. */
+/**
+ * Reads the latest evidence row matching a predicate. Evidence is append only
+ * and accumulates across attempts, so the newest match is the one that belongs
+ * with the outputs on the row now.
+ */
 export function findEvidence(evidence: Evidence[], predicate: (e: Evidence) => boolean): Evidence | undefined {
-  return evidence.find(predicate);
+  return evidence.findLast(predicate);
 }
 
 export function evidenceBody<T = Record<string, unknown>>(item: Evidence | undefined): T | undefined {

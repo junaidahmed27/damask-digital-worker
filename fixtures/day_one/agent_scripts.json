@@ -1,0 +1,168 @@
+{
+  "note": "Recorded tool call sequences for the scripted model provider, one per agent, row and attempt. Every call here really runs through the connector kit against the simulators, and every value marked $steps.N or $inputs comes from a real tool result or the row's inputs, so the two traps are produced by the fixture data and caught by the checks rather than being written into this file. Change the identity provider fixture and the first attempt changes with it.",
+
+  "provisioner": {
+    "accounts_access": {
+      "1": {
+        "reasoning": "Read the hire's record, look at what the last sales engineer holds, and set the new account up the same way.",
+        "steps": [
+          { "tool": "hris.get_worker", "input": { "id": "$inputs.hire_id" } },
+          { "tool": "hris.get_role_profile", "input": { "name": "$steps.0.data.role_profile" } },
+          { "tool": "idp.get_user", "input": { "id": "$inputs.previous_holder" }, "note": "the trap: the previous holder is not the role profile" },
+          { "tool": "idp.create_user", "input": { "id": "$inputs.hire_id", "email": "$steps.0.data.email" } },
+          { "tool": "idp.assign_groups", "input": { "id": "$inputs.hire_id", "groups": "$steps.2.data.groups" } }
+        ],
+        "output": {
+          "account": "$inputs.hire_id",
+          "granted_groups": "$steps.4.data.groups",
+          "copied_from": "$inputs.previous_holder"
+        },
+        "note": "Set the account up to match the last sales engineer."
+      },
+      "2": {
+        "reasoning": "The role profile from the HRIS is the only source of allowed access. Set the groups to exactly that.",
+        "steps": [
+          { "tool": "hris.get_worker", "input": { "id": "$inputs.hire_id" } },
+          { "tool": "hris.get_role_profile", "input": { "name": "$steps.0.data.role_profile" } },
+          { "tool": "idp.assign_groups", "input": { "id": "$inputs.hire_id", "groups": "$steps.1.data.groups" } }
+        ],
+        "output": {
+          "account": "$inputs.hire_id",
+          "granted_groups": "$steps.2.data.groups",
+          "source": "hris.get_role_profile"
+        },
+        "note": "Granted exactly the sales engineer role profile."
+      }
+    },
+
+    "badge_desk": {
+      "1": {
+        "reasoning": "Request the badge for the building and take the next free desk in the role profile's zone.",
+        "steps": [
+          { "tool": "hris.get_worker", "input": { "id": "$inputs.hire_id" } },
+          { "tool": "hris.get_role_profile", "input": { "name": "$steps.0.data.role_profile" } },
+          { "tool": "facilities.request_badge", "input": { "worker": "$inputs.hire_id", "building": "$inputs.building" } },
+          { "tool": "facilities.assign_desk", "input": { "worker": "$inputs.hire_id", "zone": "$steps.1.data.desk_zone" } }
+        ],
+        "output": {
+          "badge_number": "$steps.2.data.badge_number",
+          "collect_at": "$steps.2.data.collect_at",
+          "desk": "$steps.3.data.desk",
+          "zone": "$steps.3.data.zone"
+        },
+        "note": "Badge requested and desk assigned next to the team."
+      }
+    },
+
+    "payroll_enrolment": {
+      "1": {
+        "reasoning": "Enrol the hire in payroll and return the completed form.",
+        "steps": [{ "tool": "hris.enrol_payroll", "input": { "id": "$inputs.hire_id" } }],
+        "output": { "form": "$steps.0.data.form", "enrolled": "$steps.0.data.enrolled" },
+        "note": "Payroll enrolment complete."
+      }
+    },
+
+    "background_check": {
+      "1": {
+        "reasoning": "Run the background check and report the provider's result. A flag is for the HR lead to settle, not for me.",
+        "steps": [{ "tool": "hris.background_check", "input": { "id": "$inputs.hire_id" } }],
+        "output": {
+          "status": "$steps.0.data.status",
+          "flag": "$steps.0.data.flag",
+          "reference": "$steps.0.data.reference",
+          "cleared_by": null
+        },
+        "note": "The provider flagged a partial name match. This needs the HR lead."
+      }
+    }
+  },
+
+  "shipper": {
+    "laptop_shipped": {
+      "1": {
+        "reasoning": "Order the laptop and ship it to the address on file for the hire.",
+        "steps": [
+          { "tool": "hris.get_worker", "input": { "id": "$inputs.hire_id" } },
+          { "tool": "hris.get_role_profile", "input": { "name": "$steps.0.data.role_profile" } },
+          {
+            "tool": "mdm.order_device",
+            "input": {
+              "model": "$steps.1.data.device",
+              "for_worker": "$inputs.hire_id",
+              "role_profile": "$steps.0.data.role_profile"
+            }
+          },
+          {
+            "tool": "shipping.book",
+            "input": {
+              "to": "$inputs.offer_letter.address",
+              "service_level": "two_day",
+              "reference": "$steps.2.data.asset_tag"
+            },
+            "note": "the trap: the offer letter address, not the HRIS address as of today"
+          },
+          { "tool": "shipping.track", "input": { "tracking_number": "$steps.3.data.tracking_number" } }
+        ],
+        "output": {
+          "asset_tag": "$steps.2.data.asset_tag",
+          "ship_to": "$steps.3.data.to",
+          "tracking_number": "$steps.4.data.tracking_number",
+          "source": "offer_letter"
+        },
+        "note": "Booked to the address on the offer letter."
+      },
+      "2": {
+        "reasoning": "The address must be the one in the HRIS as of today. Cancel the first booking and rebook.",
+        "steps": [
+          { "tool": "hris.get_worker", "input": { "id": "$inputs.hire_id" } },
+          { "tool": "shipping.cancel", "input": { "tracking_number": "$inputs.previous_tracking_number" } },
+          {
+            "tool": "shipping.book",
+            "input": {
+              "to": "$steps.0.data.address",
+              "service_level": "two_day",
+              "reference": "$inputs.asset_tag"
+            }
+          },
+          { "tool": "shipping.track", "input": { "tracking_number": "$steps.2.data.tracking_number" } }
+        ],
+        "output": {
+          "asset_tag": "$inputs.asset_tag",
+          "ship_to": "$steps.2.data.to",
+          "tracking_number": "$steps.3.data.tracking_number",
+          "source": "hris.get_worker as of today",
+          "cancelled": "$steps.1.data.tracking_number"
+        },
+        "note": "Cancelled the first booking and rebooked to the HRIS address as of today."
+      }
+    }
+  },
+
+  "welcomer": {
+    "welcome_email": {
+      "1": {
+        "reasoning": "Draft the welcome email in the run's document. A person approves before anything is sent.",
+        "steps": [
+          { "tool": "hris.get_worker", "input": { "id": "$inputs.hire_id" } },
+          {
+            "tool": "docs.write_section",
+            "input": {
+              "document_id": "$inputs.document_id",
+              "heading": "Welcome email, draft",
+              "body": "Hi Priya, welcome to the team. Your laptop is on its way, your badge is waiting at Level 1 reception and your first week is in your calendar. Your manager Maya will meet you at nine on Monday."
+            }
+          }
+        ],
+        "output": {
+          "draft_text": "Hi Priya, welcome to the team. Your laptop is on its way, your badge is waiting at Level 1 reception and your first week is in your calendar. Your manager Maya will meet you at nine on Monday.",
+          "to": "$steps.0.data.email",
+          "subject": "Welcome to the team",
+          "sent": false,
+          "document_section": "$steps.1.data.heading"
+        },
+        "note": "Drafted in the run document. Waiting on approval before anything is sent."
+      }
+    }
+  }
+}

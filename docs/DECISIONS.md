@@ -77,3 +77,32 @@ environment, so the acceptance for "the doc is created and sections written" is
 demonstrated against the simulator, which implements the same three ops. The same
 is true of Slack in WP-6. Both are one environment variable away from running for
 real and neither has a second code path.
+
+## D-9. A declared deliverable in an agent's outputs is attached as evidence
+
+Some evidence a row requires is not a reading of an external system: it is the
+thing the agent made, such as the drafted welcome email, and later a memo or a
+classification. Golden rule 4 says an agent output without evidence cannot be
+verified, and there was no way for an agent to put an artefact on the record at
+all, so the welcome email row could never satisfy its own `evidence: [draft_text]`.
+`lib/agents/runtime.ts` therefore attaches, on submit, any output whose name the
+row's `evidence_required` declares and that nothing already stands for. It invents
+nothing: a kind the agent produced no output for stays missing and the row fails
+on it, and the row's check still has to pass over the artefact.
+
+## D-10. A wait is quiet, not busy
+
+The local dispatcher's `settle()` returns when nothing is executing and anything
+still open is parked on `waitForEvent`. A row waiting two days for an approver is
+the durable wait working, not work in flight, and treating it as busy made the
+demo hang on the first approval. Inngest Cloud has the same semantics.
+
+## D-11. A check reads the latest evidence of a kind, not the first
+
+Confirmed with a human, since `lib/ledger/checks/**` is a protected zone.
+Evidence is append only and accumulates across attempts, so after a hand back the
+newest booking, lookup and profile read are the ones that belong with the outputs
+now on the row. The onboarding pack read the first match, which made the Shipper's
+corrected booking fail against the cancelled booking's tracking lookup for ever.
+Every evidence lookup in the pack, and the `findEvidence` helper, now read the
+latest match.
