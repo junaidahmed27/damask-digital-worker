@@ -1,31 +1,98 @@
-# Work Ledger, repository kickoff
+# Work Ledger
 
-This folder is the complete plan for the Work Ledger. Copy it into a fresh repository and run the coding agent against it.
+A durable record of work that people and agents share. A sheet and a chat surface
+on top of it, a connector kit with simulators, and a runtime that executes
+workflows with verification, approvals and escalation.
+
+Built from `docs/LEDGER_BUILD_PLAN.md`. Every work package in section 17 is done;
+`docs/DECISIONS.md` records the forty five decisions the plan did not cover, and
+what was and was not proven in each.
+
+## Running it
+
+Nothing needs to be signed up for. With no credentials configured the database is
+an embedded Postgres, every external system is its simulator, and the model
+provider is deterministic.
+
+```
+npm install
+make demo      # the Day One scenario end to end, from an empty database
+make dev       # the sheet at localhost:3000
+```
+
+`make demo` seeds, plans the run, contracts it as Maya, drives both traps through
+the simulators, takes the background check to Dan, and prints the transition log
+and the replay at Friday 4pm. It finishes in about five seconds.
+
+## The gate
+
+```
+make gate
+```
+
+typecheck, lint, 264 tests, a headless Day One run from an empty database, a
+rehearsal of the current workflow definition against that run with a zero diff on
+verified rows, the memory pipeline with its integrity suite, the Day One scenario
+on two model providers, and the same commit run under the Vercel and Azure
+configurations with their audit exports compared. Nothing is committed red.
+
+Other targets: `make audit` (the printable audit page), `make memory` (the seven
+stage pass and the integrity report), `make rehearse`, `make providers`,
+`make parity`, `make container`.
 
 ## What is here
 
-- `docs/LEDGER_BUILD_PLAN.md`: the end to end plan, architecture, data model, state machine, runtime, connectors, surfaces, the sheet as program, the planner, the context compiler, search and access control, deployment, and twenty two work packages with acceptance criteria in build order.
-- `docs/KL_ORG_MEMORY_AND_WORKFLOWS.md`: the organizational memory pipeline over the first credit customer's sources, and the two workflow definitions, Deal Origination and the SuperAnalyst, in the ledger's YAML form.
-- `CLAUDE.md`: the coding agent's instructions, task protocol, protected zones and golden rules.
+| | |
+|---|---|
+| `lib/ledger/` | the state machine, the hash chain, the check registry and its three packs, replay, the audit export and the signed archive |
+| `lib/runtime/` | the durable functions' step interface, the local dispatcher, the database queue and its worker |
+| `inngest/functions/` | plan, agentStep, runChecks, approvals, unblock, deadlines, revoke, project, rules |
+| `lib/connectors/` | the kit and every connector: HRIS, identity, devices, shipping, facilities, files, chat (Slack, Teams, simulator), docs, mail, CRM, ticketing, memory |
+| `lib/sheet/` | the sheet as the program: cells with provenance, the formula evaluator, plan and batch shapes, run column |
+| `lib/planner/` | the task ontology, the library match and compose |
+| `lib/memory/` | the seven stage pipeline, the extractors, the engines, the context compiler and the integrity suite |
+| `lib/capture/` | mail, file drop, form and voice jot |
+| `lib/interop/` | the MCP server, worker tokens, agent cards, the xlsx writer and reader |
+| `lib/ask/` | the ask surface, sharing and templates |
+| `app/` | the sheet, the workers tab, the runs page, the grid, and every API route |
+| `workflows/` | day_one, kl_sourcing, kl_intake |
+| `fixtures/` | the Day One fixtures with both traps, and an invented credit corpus |
+| `deploy/azure/` | the container app template and what the customer cloud path changes |
+| `docs/TRUST.md` | the trust pack |
 
-## Before the agent starts (human, about one hour)
+## The two traps
 
-1. Create the GitHub repository and copy these files in; commit.
-2. Vercel: import the repository; enable git deploys.
-3. Neon: create the project with two databases, `demo` and `kl`; note `DATABASE_URL` for each.
-4. Inngest Cloud: create the app; note `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY`.
-5. Slack: create the app from `slack/manifest.yaml` once the agent writes it (WP-6); until then, leave the Slack variables empty and the demo runs with the chat surface stubbed.
-6. Google: a service account with Docs and Sheets scopes; share the template doc with it; `GOOGLE_SERVICE_ACCOUNT_JSON`.
-7. Clerk: an application with Slack as a social login; `CLERK_*` keys.
-8. Anthropic: `ANTHROPIC_API_KEY` under the zero retention agreement.
-9. Put all of the above in Vercel environment variables and a local `.env` the agent can read.
+The Day One demo is not a happy path. The last sales engineer's identity profile
+carries a CRM admin exception the role profile does not, so the Provisioner's first
+pass is handed back by `access_equals_role_profile`. The offer letter carries
+Priya's address from before it changed on 11 September, so the Shipper's first
+booking is handed back by `address_as_of_today`. Both traps are in the fixture
+data, not in a script: change `fixtures/day_one/idp.json` and the first attempt
+changes with it.
 
-## The kickoff prompt for the coding agent
+## Configuration
 
-Paste this as the first message:
+Copy `.env.example`. Every variable is optional. Setting one swaps a simulator for
+the real thing with no other change:
 
-"Read CLAUDE.md, docs/LEDGER_BUILD_PLAN.md and docs/KL_ORG_MEMORY_AND_WORKFLOWS.md in full. Then execute the work packages in the build order in section 17 of the plan, starting with WP-0, one at a time, running `make gate` before every commit and committing to main only on green with the acceptance output in the commit body. Tick each WP's box in the plan when its acceptance passes. Stop and ask only when a protected zone must change. Target for this session: WP-0 through WP-7 so that `make demo` runs the Day One scenario end to end on simulators with real Slack and a real Google Doc when their credentials are present."
+- `DATABASE_URL` — Neon or any Postgres, instead of the embedded database
+- `ANTHROPIC_API_KEY`, or `AZURE_OPENAI_*`, or `OPEN_WEIGHTS_*` — a real model
+- `SLACK_*` or `TEAMS_*` — a real chat surface
+- `GOOGLE_SERVICE_ACCOUNT_JSON` — real run documents
+- `WORKDAY_*`, `OKTA_*`, `AFFINITY_API_KEY`, `JIRA_*` — real systems of record
+- `INNGEST_*` — Inngest Cloud instead of the in process dispatcher or the database queue
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — traces to your own collector
 
-## What good looks like at the end of the first session
+`GET /api/health` says which of these are in use, and every audit archive carries
+the same statement of what leaves the boundary, read from the configuration.
 
-`make demo` creates the Day One run from the sheet or from `/ledger new`, drives the three traps through the simulators, escalates the background check to a person, blocks the welcome email until approval, replays the sheet at a chosen time, and exports the audit page naming the access approver. Every row reached `done` only through `verified`.
+## The rules the code holds
+
+A row reaches `done` only from `verified`, and `verified` only with a passing
+check and the evidence the row requires. An agent never settles a check that lists
+human approval. An approval is resolved only by a named person. A revoked worker
+cannot be the actor of any transition and cannot reach any connector. Every
+transition appends exactly one hash chained row under a per contract advisory
+lock. Nothing runs from a plan a person has not contracted. No agent sends real
+mail. Each of these is a test, and the gate runs them before anything is
+committed.
