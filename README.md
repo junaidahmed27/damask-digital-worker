@@ -6,7 +6,7 @@ workflows with verification, approvals and escalation.
 
 Built from `docs/LEDGER_BUILD_PLAN.md`. Every work package in section 17 is done;
 `docs/DECISIONS.md` records the forty five decisions the plan did not cover, and
-what was and was not proven in each.
+what was proven in each.
 
 ## Running it
 
@@ -30,7 +30,7 @@ and the replay at Friday 4pm. It finishes in about five seconds.
 make gate
 ```
 
-typecheck, lint, 264 tests, a headless Day One run from an empty database, a
+typecheck, lint, 276 tests, a headless Day One run from an empty database, a
 rehearsal of the current workflow definition against that run with a zero diff on
 verified rows, the memory pipeline with its integrity suite, the Day One scenario
 on two model providers, and the same commit run under the Vercel and Azure
@@ -38,7 +38,13 @@ configurations with their audit exports compared. Nothing is committed red.
 
 Other targets: `make audit` (the printable audit page), `make memory` (the seven
 stage pass and the integrity report), `make rehearse`, `make providers`,
-`make parity`, `make container`.
+`make parity`, `make container`, `make container-smoke`.
+
+`make container-smoke` builds the image and starts it with nothing configured. It
+migrates its own database on boot, so it comes up working rather than merely
+coming up, and the smoke proves that: the boot log names the migrations, the
+health endpoint returns a queue read from a table, and MCP refuses a caller with
+no token.
 
 ## What is here
 
@@ -53,6 +59,7 @@ stage pass and the integrity report), `make rehearse`, `make providers`,
 | `lib/memory/` | the seven stage pipeline, the extractors, the engines, the context compiler and the integrity suite |
 | `lib/capture/` | mail, file drop, form and voice jot |
 | `lib/interop/` | the MCP server, worker tokens, agent cards, the xlsx writer and reader |
+| `api/checks/` | the Python verifier pack, deployed as Vercel Python functions |
 | `lib/ask/` | the ask surface, sharing and templates |
 | `app/` | the sheet, the workers tab, the runs page, the grid, and every API route |
 | `workflows/` | day_one, kl_sourcing, kl_intake |
@@ -82,6 +89,8 @@ the real thing with no other change:
 - `WORKDAY_*`, `OKTA_*`, `AFFINITY_API_KEY`, `JIRA_*` — real systems of record
 - `INNGEST_*` — Inngest Cloud instead of the in process dispatcher or the database queue
 - `OTEL_EXPORTER_OTLP_ENDPOINT` — traces to your own collector
+- `PYTHON_CHECKS_URL` — the Python verifier pack; unset, a row whose workflow
+  names one of its checks goes to a person rather than through
 
 `GET /api/health` says which of these are in use, and every audit archive carries
 the same statement of what leaves the boundary, read from the configuration.
@@ -89,7 +98,9 @@ the same statement of what leaves the boundary, read from the configuration.
 ## The rules the code holds
 
 A row reaches `done` only from `verified`, and `verified` only with a passing
-check and the evidence the row requires. An agent never settles a check that lists
+check and the evidence the row requires. A check nobody could run is not a check
+that passed: a verifier that is unreachable fails the row, and one that is not
+deployed at all resolves to human review. An agent never settles a check that lists
 human approval. An approval is resolved only by a named person. A revoked worker
 cannot be the actor of any transition and cannot reach any connector. Every
 transition appends exactly one hash chained row under a per contract advisory

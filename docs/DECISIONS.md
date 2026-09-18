@@ -378,21 +378,36 @@ selected in the auth abstraction; and telemetry is on, with a span per transitio
 What is not proven is that Azure Container Apps accepts the bicep template, which
 needs a subscription.
 
-## D-37. The container is built by `make container` and was not built here
+## D-37. The container is built, and it migrates before it serves
 
-The Dockerfile is a three stage build: production dependencies, the Next.js
-build, and a runtime stage that copies the compiled application plus the
-migrations, the workflow definitions and the fixtures, because those are data the
-ledger reads at run time rather than build artefacts. It runs as an unprivileged
-user and health checks `/api/health`.
+The Dockerfile is a two stage build: one dependency tree installed once and
+pruned in place after the build, then a runtime stage that copies the compiled
+application plus the migrations, the workflow definitions and the fixtures,
+because those are data the ledger reads at run time rather than build artefacts.
+It runs as an unprivileged user and health checks `/api/health`.
 
-The image could not be built in this environment: Docker had 21GB of unrelated
-images already and ran out of disk part way through the build stage, twice, and
-deleting somebody else's images is not this build's call. What was verified
-instead is the thing the Dockerfile's runtime stage actually depends on: the
-production build succeeds, `npm run start` serves, and `/api/health` reports
-`environment: azure, chat: teams, auth: entra, durability: database_queue,
-telemetry: otlp` when the Azure environment variables are set.
+The first version of it would not build: it materialised `node_modules` three
+times in the dependency stage, once for production, once copied aside and once in
+full, and ran out of disk. Installing once and pruning is both smaller and
+simpler. Two more things were costing a gigabyte and a half each: `.next/cache` is
+four hundred megabytes of incremental compilation state the server never reads,
+and a `RUN chown -R` at the end rewrote every file into a second copy of the whole
+application. Dropping the cache and moving the ownership onto `COPY --chown` took
+the image from 2.97GB to 1.18GB.
+
+The container migrates on boot rather than expecting somebody to have run
+`make migrate` against the database first. A container app starts several replicas
+at once, so `migrate()` now holds `pg_advisory_lock(hashtext('ledger_migrations'))`
+for the whole pass: one replica applies, the rest wait and then find every
+migration already recorded. The runtime image has no `tsx`, so the migration
+runner is bundled to a single file with esbuild while the development
+dependencies are still present.
+
+`make container-smoke` is the acceptance, runnable. It builds the image, starts it
+with nothing configured, and proves it came up working rather than merely came up:
+the boot log names the migrations it applied, `/api/health` returns a queue object,
+which is read from a table and so is proof the schema exists, `/api/runs` answers a
+database backed read, and MCP refuses a caller with no token.
 
 ## D-38. The statement of what leaves the boundary is generated, not written
 
@@ -467,7 +482,7 @@ and the grant itself lands in `signals` marked as crossing an organization. A
 grant never reaches further than the granter's own scopes, and the state machine
 does not care which organization an actor belongs to: the same invariants apply.
 
-## D-45. The Jira adapter is built; the Python check functions are not
+## D-45. WP-9: the Jira adapter, and a Python pack that verifies independently
 
 WP-9 is marked optional and has two halves. The Jira adapter is built and driven
 over a real socket against a Jira Cloud shaped endpoint: an issue per row, the
@@ -478,9 +493,44 @@ person dragging a card to Done asks the row for `done`, and the state machine
 refuses it unless the row is verified. That refusal is the whole point of having
 the adapter be a projection.
 
-The Python check functions are not built. They are a Vercel Python deployment
-concern, the check registry already takes any function of
-`(contract, outputs, evidence) -> {passed, details}`, and there is no Vercel
-deployment here to run one on, so building it would produce something that could
-not be exercised. The registry is the seam; adding a Python pack behind it is a
-deployment change rather than a design one.
+The Python verifier pack is built, as `api/checks/engine_recompute.py` deployed by
+Vercel's Python runtime, with `lib/checks/python.ts` as the adapter that turns it
+into an ordinary `Check`. The adapter sits outside `lib/ledger/checks/**` on
+purpose: a pack that lives at the end of a network call is a deployment concern,
+and adding one should not mean editing the state machine's neighbours. It
+registers under the existing `credit` pack, because the pack name says which
+domain a check belongs to, not which language it runs in.
+
+The question was what Python should actually do, given everything else is
+TypeScript. Reimplementing a check that already exists would be a second copy to
+keep in step. The answer is `engine_recompute`: that check asks whether the
+numbers a row claims recompute from the inputs it cited, and if the recomputation
+is the same code that produced the numbers, it agrees with itself by construction
+and proves nothing. The Python file is an independent implementation of the same
+four engines, written from the formulas, so a mistake in one shows up as a
+disagreement rather than being confirmed. It reads no database, holds no state and
+takes no credentials, which is what lets it run outside the boundary, and it is
+sent the cited numbers and nothing that identifies a person.
+
+Two behaviours are deliberate. An engine the verifier has no implementation for is
+refused rather than shrugged at, because a verifier that passes anything it does
+not recognise is worse than no verifier. And a verifier that cannot be reached
+fails the row: unset `PYTHON_CHECKS_URL` and the id is not in the registry at all,
+so `resolve` falls back to `human_review` and the row goes to a person. The
+absence of a verifier is never a pass.
+
+It is exercised rather than asserted. `scripts/serve_python_checks.py` serves the
+real files from `api/checks` the way Vercel's runtime invokes them, and the tests
+drive the deployed artefact over a socket, the same approach as the Teams, Graph
+and Jira connectors. One of those tests runs all four TypeScript engines and
+checks the Python implementation agrees with each, which is the cross language
+agreement the design is for; the rest tamper with a value, flip a breach flag,
+strip a fact id and kill the server, and expect a refusal each time.
+
+One subtlety worth recording: JavaScript's `Math.round` rounds a half towards
+positive infinity and Python's `round` rounds a half to even, so `round(2.5)` is
+3 in one language and 2 in the other. Every headroom ending in a half would have
+disagreed for a reason that has nothing to do with the numbers. The Python side
+implements JavaScript's rule explicitly. Similarly, `False == 0` in Python, so a
+breach flag is compared as a boolean rather than by equality, or a lie about a
+breach would agree with a headroom of zero.

@@ -3,6 +3,7 @@ import type { Db } from "@/lib/db/client";
 import { contracts, runsHistory, runs, workflows, type Contract } from "@/lib/db/schema";
 import { newId } from "@/lib/ids";
 import { checks, requiresHumanApproval } from "@/lib/ledger/checks";
+import { ensurePythonChecks } from "@/lib/checks/python";
 import { shapeOf } from "@/lib/ledger/checks/common";
 import { listEvidence, recordCheckResult, setInputs } from "@/lib/ledger/contracts";
 import { move } from "@/lib/runtime/move";
@@ -24,6 +25,10 @@ export const runChecksFunction = defineFunction({
   async handler({ event: triggering, step, runtime }) {
     const { db } = runtime;
     const contractId = triggering.data.contractId;
+
+    // The remote packs join the registry here rather than at import, so a
+    // deployment that has no Python functions never reaches for them.
+    ensurePythonChecks();
 
     const [contract] = await db.select().from(contracts).where(eq(contracts.id, contractId)).limit(1);
     if (!contract) return { contractId, skipped: "no such row" };

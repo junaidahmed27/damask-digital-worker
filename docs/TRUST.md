@@ -24,6 +24,14 @@ the database queue instead of Inngest, the statement reads:
 - durable state is held in this deployment's own database; no queue service is used
 - nothing else leaves: evidence, facts, documents and the hash chained log stay here
 
+The Python verifier pack is the one optional component that is reached outside the
+application, and it appears in the statement whenever it is configured. It is sent
+the numbers a row claims and the cited inputs they should recompute from, and
+nothing else: no name, no evidence body, no document. It reads no database, holds
+no state and is given no credentials, so there is nothing for it to reach back
+into. A firm that would rather it did not exist leaves `PYTHON_CHECKS_URL` unset,
+and any row whose workflow names one of its checks goes to a person instead.
+
 ## 3. Per source data policy
 
 Every connector carries a data policy of `allowed`, `blocked` or `pending_review`.

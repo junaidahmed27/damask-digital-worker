@@ -276,4 +276,19 @@ describe("WP-20 what leaves the boundary", () => {
       delete process.env[key];
     }
   });
+
+  it("names the python verifier pack only when it is configured", () => {
+    expect(dataLeavingTheBoundary().some((line) => line.includes("verifier pack"))).toBe(false);
+
+    process.env.PYTHON_CHECKS_URL = "https://checks.example.test";
+    const configured = dataLeavingTheBoundary();
+    const line = configured.find((entry) => entry.includes("verifier pack"));
+    expect(line).toContain("https://checks.example.test");
+    // The pack is sent numbers to recompute, and the statement says what does not
+    // go with them, because that is the part a firm asks about.
+    expect(line).toContain("No name, no evidence body and no document");
+    expect(configured.at(-1)).toContain("Nothing else leaves");
+
+    delete process.env.PYTHON_CHECKS_URL;
+  });
 });

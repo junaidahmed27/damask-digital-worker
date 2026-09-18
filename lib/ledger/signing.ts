@@ -144,6 +144,11 @@ export function dataLeavingTheBoundary(): string[] {
   }
   if (process.env.INNGEST_EVENT_KEY) out.push("Event names and their payloads go to Inngest Cloud.");
   else out.push("Durable state is held in this deployment's own database; no queue service is used.");
+  if (process.env.PYTHON_CHECKS_URL) {
+    out.push(
+      `The cited numbers a row claims go to the Python verifier pack at ${process.env.PYTHON_CHECKS_URL} to be recomputed. No name, no evidence body and no document goes with them.`,
+    );
+  }
 
   out.push("Nothing else leaves. Evidence, facts, documents and the hash chained log stay in this deployment.");
   return out;
