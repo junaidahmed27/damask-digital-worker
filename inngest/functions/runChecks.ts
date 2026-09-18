@@ -188,6 +188,11 @@ function describeFailure(checkId: string, details: Record<string, unknown>): str
       .map(([id, value]) => describeFailure(id, value.details));
     if (failed.length > 0) return failed.join("; ");
   }
+  if (Array.isArray(details.missing) && details.missing.length > 0) {
+    // Say what is missing. "evidence_present failed" tells whoever picks the row
+    // up next nothing they can act on.
+    return `${checkId} failed: this row still needs ${(details.missing as string[]).join(", ")}`;
+  }
   if (typeof details.reason === "string") return `${checkId} failed: ${details.reason}`;
   return `${checkId} failed`;
 }

@@ -339,6 +339,28 @@ export const connectorEvents = pgTable("connector_events", {
 });
 
 /**
+ * A worker's token. An external bot, a coding agent or a vendor's agent holds one
+ * of these and is subject to every invariant a built in agent is. Only the hash
+ * is stored, so the ledger cannot leak a token it was given.
+ */
+export const workerTokens = pgTable(
+  "worker_tokens",
+  {
+    id: id(),
+    workerId: text("worker_id").notNull(),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull().default(sql`'["org"]'::jsonb`),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("worker_tokens_hash").on(t.tokenHash), index("worker_tokens_worker").on(t.workerId)],
+);
+
+export type WorkerToken = typeof workerTokens.$inferSelect;
+
+/**
  * The database queue. In the Vercel deployment Inngest holds the durable state;
  * in a customer's boundary, where a third party queue may not be allowed, the
  * same events are held here and worked by the same functions. Rows are claimed

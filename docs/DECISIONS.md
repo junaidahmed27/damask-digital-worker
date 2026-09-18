@@ -401,3 +401,43 @@ which model provider, which chat surface, whether traces go anywhere, whether a
 queue service is used. It is written into every signed audit archive. A document
 that says what leaves the boundary drifts from the deployment; a function that
 reads the deployment cannot.
+
+## D-39. An external agent reaches the ledger through the MCP server and nothing else
+
+An external bot has a worker row and a token, and the only thing it can do is call
+the seven MCP tools. That is what makes "the same invariants apply to it" true
+rather than hoped for: `claim_row` goes through `transition()`, `submit_output`
+attaches evidence and then goes through `transition()`, and `ask_approval` cannot
+settle anything. Two refusals are worth naming. A status in an output is refused
+before anything is written, because an output is not a status and an agent that
+could set one would walk around invariant 1. And an agent that submits without the
+evidence its row declares is handed back by the check, with the missing kinds
+named, exactly as a built in agent is.
+
+## D-40. The xlsx writer and reader are written here rather than taken from a library
+
+Two operations need them: export a sheet with a hidden provenance sheet beside it,
+and read a plain spreadsheet back as a draft. `lib/interop/xlsx.ts` writes the zip
+and the XML parts directly, in about three hundred lines, and reads them back. The
+test writes a file and runs the real `unzip -t` over it, so the claim that it is a
+valid workbook is checked by something that is not this code.
+
+The provenance sheet is hidden rather than absent. A spreadsheet that loses who
+set every cell the moment it is exported is how work gets laundered, and a hidden
+sheet is readable by anyone who looks while staying out of the way of the person
+who just wants the numbers.
+
+## D-41. An imported automation is a worker, and an unreliable bot degrades into a row
+
+Wrapping a team's existing Claude project or scheduled script as an `imported`
+worker changes nothing about the automation: what changes is that its output lands
+in the ledger with evidence instead of in a private chat. The monitored chat
+account adapter treats a reply with nothing to show as a hand back and silence as
+an escalation, so a bot that gets worse turns into a row somebody has to look at
+rather than into a silent gap.
+
+## D-42. A hand back says what is missing
+
+`evidence_present failed` told whoever picked the row up next nothing they could
+act on. A failure whose details name what is missing now says so:
+"this row still needs desk_assignment".
