@@ -471,7 +471,11 @@ async function extract(
         continue;
       }
 
-      await supersede(db, entityId, found.attribute, args.now);
+      // One instant for the handover: the older fact is superseded at exactly
+      // the moment the newer one is recorded, so a read as of any instant
+      // returns exactly one of them and there is never a gap between the two.
+      const at = new Date();
+      await supersede(db, entityId, found.attribute, at);
       await db.insert(facts).values({
         id: newId("ft"),
         entityId,
@@ -481,6 +485,7 @@ async function extract(
         unit: found.unit ?? null,
         validFrom: found.validFrom ?? args.event.occurredAt,
         validTo: found.validTo ?? null,
+        recordedAt: at,
         sourceEventId: args.event.id,
         spanStart: found.spanStart,
         spanEnd: found.spanEnd,

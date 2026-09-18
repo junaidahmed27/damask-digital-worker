@@ -277,3 +277,13 @@ all three as accounted for, which is the plan's 95 percent, and reports
 On the fixture corpus that is 100 percent accounted for and 92.9 percent linked or
 orphaned, the difference being one mail thread that discusses one deal and
 mentions another.
+
+## D-28. A fact is superseded at exactly the instant its replacement is recorded
+
+The backfill stamped every supersession with the instant the pipeline started,
+while the replacing fact's record time was whenever it happened to be written.
+The two clocks then disagreed: for a window of milliseconds a read as of an
+instant returned neither the old fact nor the new one. Both now share one instant,
+so a read as of any instant returns exactly one of them and there is never a gap.
+This is the kind of defect that only shows up when something actually asks "what
+did we believe then", which is what the context compiler does.
