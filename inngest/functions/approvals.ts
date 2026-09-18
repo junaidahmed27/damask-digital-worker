@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { contracts, runs, workers, workflows } from "@/lib/db/schema";
-import { recordCheckResult } from "@/lib/ledger/contracts";
+import { attachEvidence, recordCheckResult } from "@/lib/ledger/contracts";
 import { move } from "@/lib/runtime/move";
 import { event } from "@/lib/runtime/events";
 import { defineFunction } from "@/lib/runtime/step";
@@ -134,6 +134,17 @@ export const settleApprovalFunction = defineFunction({
     if (contract.state !== "awaiting_approval") {
       return { contractId, skipped: `the row is ${contract.state}` };
     }
+
+    // A decision is a fact about the row, so it goes on the record as evidence
+    // the moment it is made, whichever way it went.
+    await step.run(`reason:${contractId}:${actorId}`, () =>
+      attachEvidence(db, {
+        contractId,
+        kind: "decision_reason",
+        body: { decision, reason: reason ?? null, decided_by: actorId, at: runtime.now().toISOString() },
+        createdBy: actorId,
+      }),
+    );
 
     if (decision === "approve") {
       await step.run(`record:${contractId}:${actorId}`, () =>

@@ -1,0 +1,251 @@
+{
+  "note": "Recorded tool call sequences for the credit agents. Every call runs for real through the connector kit against the CRM fixture, the files simulator and the ledger's own memory, so what the checks catch comes from the data.",
+  "scout": {
+    "crm_history": {
+      "1": {
+        "reasoning": "Look the candidate up in the CRM before anything else, and carry what happened last time onto the row.",
+        "steps": [
+          {
+            "tool": "crm.lookup",
+            "input": {
+              "query": "$inputs.company"
+            }
+          },
+          {
+            "tool": "memory.decision_records",
+            "input": {
+              "entity": "$inputs.company"
+            }
+          }
+        ],
+        "output": {
+          "company": "$inputs.company",
+          "known": "$steps.0.data.found",
+          "record_id": "$steps.0.data.record_id",
+          "prior_decision": {
+            "passed_before": "$steps.0.data.passed_before",
+            "reason": "$steps.0.data.reason",
+            "decided_at": "$steps.0.data.decided_at"
+          },
+          "sources": [
+            {
+              "url": "$inputs.source"
+            }
+          ]
+        },
+        "note": "Looked the candidate up in the CRM and carried the prior decision onto the row."
+      }
+    }
+  },
+  "profiler": {
+    "profile": {
+      "1": {
+        "reasoning": "Build the profile only from facts that cite their source.",
+        "steps": [
+          {
+            "tool": "memory.compile_context",
+            "input": {
+              "text": "sector, size and structure for $inputs.company",
+              "entities": [
+                "$inputs.company"
+              ],
+              "attributes": [
+                "revenue",
+                "ebitda",
+                "leverage",
+                "sponsor_of"
+              ],
+              "state": "researched"
+            }
+          }
+        ],
+        "output": {
+          "company": "$inputs.company",
+          "facts": "$steps.0.data.facts",
+          "citations": "$steps.0.data.citations",
+          "missing": "$steps.0.data.missing_facts",
+          "bundle_hash": "$steps.0.data.hash"
+        },
+        "note": "Profiled from the memory, with every fact cited and the gaps named."
+      }
+    }
+  },
+  "screener": {
+    "mandate_fit": {
+      "1": {
+        "reasoning": "Evaluate the mandate rules deterministically and record every result, including the unknowns.",
+        "steps": [
+          {
+            "tool": "memory.compile_context",
+            "input": {
+              "text": "mandate fit for $inputs.company",
+              "entities": [
+                "$inputs.company"
+              ],
+              "attributes": [
+                "leverage",
+                "commitment"
+              ],
+              "engines": [
+                "mandate_fit"
+              ],
+              "state": "screened"
+            }
+          }
+        ],
+        "output": {
+          "company": "$inputs.company",
+          "rules": [
+            {
+              "rule": "sector is in the themes in force",
+              "pass": true
+            },
+            {
+              "rule": "size estimate between 50m and 400m",
+              "pass": true
+            },
+            {
+              "rule": "structure is senior secured",
+              "pass": true
+            }
+          ],
+          "computations": "$steps.0.data.computations"
+        },
+        "note": "Every mandate rule evaluated and recorded."
+      }
+    }
+  },
+  "writer": {
+    "lead_memo": {
+      "1": {
+        "reasoning": "Write the memo with considerations, downsides and comparable history from the firm's own decisions. No verdict.",
+        "steps": [
+          {
+            "tool": "memory.decision_records",
+            "input": {
+              "entity": "$inputs.company"
+            }
+          },
+          {
+            "tool": "memory.compile_context",
+            "input": {
+              "text": "comparable history in specialty pharma for $inputs.company",
+              "entities": [
+                "$inputs.company"
+              ],
+              "attributes": [
+                "leverage",
+                "ebitda"
+              ],
+              "state": "memo_ready"
+            }
+          }
+        ],
+        "output": {
+          "company": "$inputs.company",
+          "memo": "CONSIDERATIONS\nThe candidate sits on a theme in force and the size estimate is inside the mandate band.\n\nDOWNSIDES\nPayer concentration is the common reason the firm declines in this sector, and it is not yet established here.\n\nCOMPARABLE HISTORY\nThe firm passed on Project Castellan in September 2025 on an incurrence only covenant package and payer concentration at 58 percent. The same two questions apply.\n\nQUESTIONS FOR THE SPONSOR\nWhat is the payer mix, and would they accept a maintenance covenant?",
+          "memo_text": {
+            "text": "CONSIDERATIONS\nThe candidate sits on a theme in force and the size estimate is inside the mandate band.\n\nDOWNSIDES\nPayer concentration is the common reason the firm declines in this sector, and it is not yet established here.\n\nCOMPARABLE HISTORY\nThe firm passed on Project Castellan in September 2025 on an incurrence only covenant package and payer concentration at 58 percent. The same two questions apply.\n\nQUESTIONS FOR THE SPONSOR\nWhat is the payer mix, and would they accept a maintenance covenant?"
+          },
+          "citations": "$steps.0.data.decisions",
+          "decision_records_cited": {
+            "decisions": "$steps.0.data.decisions"
+          }
+        },
+        "note": "Memo written with considerations, downsides and comparable history, and no verdict."
+      }
+    },
+    "outreach_draft": {
+      "1": {
+        "reasoning": "Draft the message for the person to send.",
+        "steps": [],
+        "output": {
+          "draft_text": "Thank you for the introduction. We would like to understand the payer mix and whether a maintenance covenant is acceptable before we go further.",
+          "sent": false
+        },
+        "note": "Drafted for the sourcing lead to send."
+      }
+    }
+  },
+  "crmwriter": {
+    "crm_write": {
+      "1": {
+        "reasoning": "The lead was accepted, so create the record.",
+        "steps": [
+          {
+            "tool": "crm.create",
+            "input": {
+              "name": "$inputs.company",
+              "domain": "$inputs.domain",
+              "source": "$inputs.source",
+              "theme": "$inputs.theme"
+            }
+          }
+        ],
+        "output": {
+          "affinity_record_id": "$steps.0.data.record_id",
+          "company": "$inputs.company"
+        },
+        "note": "Created the CRM record."
+      }
+    }
+  },
+  "classifier": {
+    "classify": {
+      "1": {
+        "reasoning": "Read the document before saying anything about it.",
+        "steps": [
+          {
+            "tool": "files.read",
+            "input": {
+              "path": "$inputs.path"
+            }
+          }
+        ],
+        "output": {
+          "path": "$inputs.path",
+          "sha256": "$steps.0.data.sha256",
+          "bytes": "$steps.0.data.bytes"
+        },
+        "note": "Read the document."
+      }
+    },
+    "link_to_deal": {
+      "1": {
+        "reasoning": "Link the document to the deal whose identifier is in it, and attach the evidence for the link.",
+        "steps": [
+          {
+            "tool": "files.read",
+            "input": {
+              "path": "$inputs.path"
+            }
+          },
+          {
+            "tool": "memory.compile_context",
+            "input": {
+              "text": "$steps.0.data.text",
+              "attributes": [
+                "commitment"
+              ],
+              "state": "linking"
+            }
+          }
+        ],
+        "output": {
+          "path": "$inputs.path",
+          "deal_id": "$steps.1.data.manifest.entityIds.0",
+          "method": "identifier",
+          "ambiguous": false,
+          "link_evidence": {
+            "deal_id": "$steps.1.data.manifest.entityIds.0",
+            "method": "identifier",
+            "confidence": 1,
+            "read_from": "$inputs.path",
+            "sha256": "$steps.0.data.sha256"
+          }
+        },
+        "note": "Linked to the deal named by the identifier in the document."
+      }
+    }
+  }
+}

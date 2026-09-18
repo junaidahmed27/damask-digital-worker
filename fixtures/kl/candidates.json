@@ -1,0 +1,35 @@
+{
+  "note": "Candidate opportunities for a sourcing run. Halloran Speciality Labs is the trap: the firm passed on it in March 2025, and a lead memo that does not carry that reason is refused by lead_not_in_crm. Everything here is invented.",
+  "rows": [
+    {
+      "id": "cand_halloran",
+      "company": "Halloran Speciality Labs",
+      "domain": "halloranspeciality.example.test",
+      "sector": "specialty pharma",
+      "source": "sector news, Northbank note September 2025",
+      "size_estimate_usd": 120000000,
+      "theme": "specialty pharma platforms",
+      "found_at": "2026-09-18"
+    },
+    {
+      "id": "cand_verity",
+      "company": "Verity Compounding",
+      "domain": "veritycompounding.example.test",
+      "sector": "specialty pharma",
+      "source": "counterparty site",
+      "size_estimate_usd": 85000000,
+      "theme": "specialty pharma platforms",
+      "found_at": "2026-09-18"
+    },
+    {
+      "id": "cand_lindenrow",
+      "company": "Lindenrow Therapeutics",
+      "domain": "lindenrow.example.test",
+      "sector": "specialty pharma",
+      "source": "filing",
+      "size_estimate_usd": 210000000,
+      "theme": "specialty pharma platforms",
+      "found_at": "2026-09-18"
+    }
+  ]
+}

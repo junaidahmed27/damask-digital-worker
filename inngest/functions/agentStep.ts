@@ -9,6 +9,7 @@ import { event } from "@/lib/runtime/events";
 import { defineFunction } from "@/lib/runtime/step";
 import { workflowDefinitionSchema } from "@/lib/workflow/definition";
 import { agentWorkerId } from "@/lib/seed";
+import { requiresHumanApproval } from "@/lib/ledger/checks";
 
 /**
  * contract/assigned -> agentStep.
@@ -46,6 +47,33 @@ export const agentStepFunction = defineFunction({
     }
 
     if (owner.kind === "person") {
+      // A row whose check is a person's decision has no work in it: the decision
+      // is the work. It goes to the decision rather than waiting to be picked up.
+      if (requiresHumanApproval(contract.checkId, contract.checkParams)) {
+        const started = await step.run(`decide:start:${contractId}`, () =>
+          move(runtime, step, {
+            contractId,
+            to: "in_progress",
+            actorId: owner.id,
+            reason: "this row is a decision",
+          }),
+        );
+        if (started.ok) {
+          const ready = await step.run(`decide:ready:${contractId}`, () =>
+            move(runtime, step, {
+              contractId,
+              to: "completed_pending_check",
+              actorId: owner.id,
+              reason: "ready for the decision",
+            }),
+          );
+          if (ready.ok) {
+            await step.sendEvent(`checks:${contractId}`, event("contract/completed_pending_check", { contractId }));
+          }
+        }
+        return { contractId, waitingOn: owner.id, decision: true };
+      }
+
       await step.run(`notify:${contractId}`, async () => {
         try {
           await runtime.registry.call(

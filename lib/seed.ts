@@ -78,8 +78,30 @@ export async function seed(handle: DbHandle): Promise<SeedResult> {
 
   for (const def of definitions) {
     for (const w of def.workers) {
-      if (w.kind === "person") continue;
       const id = agentWorkerId(w.name);
+      // A workflow declares the people it needs as well as the agents. A role a
+      // workflow names has to exist as a worker, or a row it owns has no owner
+      // and escalates the moment it is filled. A deployment maps these role
+      // holders onto real identities; here they are seeded as themselves.
+      if (w.kind === "person") {
+        await db
+          .insert(schema.workers)
+          .values({
+            id,
+            orgId: DEMO_ORG_ID,
+            name: w.name,
+            kind: "person",
+            identity: `role:${id}`,
+            places: w.places,
+            canTouch: w.tools,
+            neverWithoutHuman: w.never_without_human,
+            role: w.role ?? "worker",
+            status: "active",
+          })
+          .onConflictDoNothing();
+        if (!workerIds.includes(id)) workerIds.push(id);
+        continue;
+      }
       await db
         .insert(schema.workers)
         .values({

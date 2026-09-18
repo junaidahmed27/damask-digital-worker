@@ -25,7 +25,11 @@ export async function runColumn(
     .where(eq(columns.sheetId, args.sheetId))
     .then((all) => all.filter((c) => c.name === args.columnName));
   if (!column) throw new Error(`no column ${args.columnName}`);
-  if (column.type !== "agent_step") throw new Error(`${args.columnName} is not an agent_step column`);
+  // A column of work and a column of decisions are both filled per row; the
+  // difference is who owns each cell and what settles it.
+  if (column.type !== "agent_step" && column.type !== "approval") {
+    throw new Error(`${args.columnName} is neither an agent_step nor an approval column`);
+  }
 
   const [person] = await db.select().from(workers).where(eq(workers.id, args.actorId)).limit(1);
   if (!person || person.kind !== "person") {
@@ -33,6 +37,7 @@ export async function runColumn(
   }
 
   const config = column.config as {
+    escalation_to?: string;
     owner?: string;
     check?: string;
     check_params?: Record<string, unknown>;
@@ -78,6 +83,8 @@ export async function runColumn(
           checkParams: config.check_params ?? {},
           evidenceRequired: config.evidence ?? [],
           inputs: { ...row.fields, sheet_id: args.sheetId, row_id: row.id, column: args.columnName },
+          // An approval column names its own approver: the person who owns it.
+          escalationTo: column.type === "approval" ? owner : (config.escalation_to ?? null),
           maxAttempts: config.max_attempts ?? 2,
           position: index,
         })

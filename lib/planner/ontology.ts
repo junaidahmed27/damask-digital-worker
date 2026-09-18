@@ -150,9 +150,13 @@ export function familyOf(ask: string): Family {
 /** A list of things to process becomes a batch sheet; a goal with steps a plan. */
 export function shapeOf(ask: string): "plan" | "batch" {
   const text = ask.toLowerCase();
-  const counted = /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|every|all|each)\s+[a-z]/.test(text);
-  const plural = /\b(leads|candidates|documents|files|positions|borrowers|companies|rows|contacts|threads)\b/.test(text);
-  return counted && plural ? "batch" : "plan";
+  // A count followed by a plural noun is a list of things to process, whatever
+  // the noun happens to be: five leads, five suppliers, twelve documents.
+  const counted = /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|every|all|each)\s+([a-z]+)\b/.exec(text);
+  const noun = counted?.[2] ?? "";
+  const plural = noun.endsWith("s") && noun.length > 3;
+  const named = /\b(leads|candidates|documents|files|positions|borrowers|companies|rows|contacts|threads)\b/.test(text);
+  return (Boolean(counted) && plural) || named ? "batch" : "plan";
 }
 
 const NUMBER_WORDS: Record<string, number> = {

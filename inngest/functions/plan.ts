@@ -7,7 +7,8 @@ import { event } from "@/lib/runtime/events";
 import { defineFunction, type Runtime } from "@/lib/runtime/step";
 import { workflowDefinitionSchema, type WorkflowDefinition } from "@/lib/workflow/definition";
 import { agentWorkerId } from "@/lib/seed";
-import { materializePlanSheet } from "@/lib/sheet/model";
+import { createBatchSheet, materializePlanSheet, type ColumnSpec } from "@/lib/sheet/model";
+import type { ColumnType } from "@/lib/db/schema";
 
 /**
  * run/created -> plan.
@@ -28,6 +29,17 @@ export const planFunction = defineFunction({
     const runId = triggering.data.runId;
 
     const definition = await step.run(`load:${runId}`, async () => loadDefinition(runtime.db, runId));
+
+    // A batch workflow's rows are its entities and its columns are the steps;
+    // nothing runs until a person fills a column. A plan workflow's rows are its
+    // contracts. Both are the same data model on a different axis.
+    if (definition.metadata.shape === "batch") {
+      const batch = await step.run(`batch:${runId}`, () => createBatchRows(runtime, runId, definition));
+      await step.run(`surfaces:${runId}`, () => openSurfaces(runtime, runId, definition, []));
+      await step.run(`invariants:${runId}`, () => copyInvariants(runtime.db, runId, definition));
+      return { runId, rows: batch.rowIds.length, sheetId: batch.sheetId, shape: "batch" };
+    }
+
     const created = await step.run(`rows:${runId}`, () => createRows(runtime, runId, definition));
     await step.run(`surfaces:${runId}`, () => openSurfaces(runtime, runId, definition, created.rowIds));
 
@@ -36,7 +48,7 @@ export const planFunction = defineFunction({
       materializePlanSheet(runtime.db, runId, { name: definition.metadata.name, actorId: definition.metadata.owner }),
     );
 
-    return { runId, rows: created.rowIds.length, sheetId: sheet.id };
+    return { runId, rows: created.rowIds.length, sheetId: sheet.id, shape: "plan" };
   },
 });
 
@@ -84,8 +96,19 @@ async function createRows(runtime: Runtime, runId: string, definition: WorkflowD
 
   if (rows.length > 0) await db.insert(contracts).values(rows);
 
-  // The workflow's invariants are scoped to this run, so transition() finds them.
-  // An invariant with no run is an invariant that never fires.
+  await copyInvariants(db, runId, definition);
+
+  runtime.log(`planned ${rows.length} rows for ${definition.metadata.name}`, { runId });
+  return { rowIds: rows.map((r) => r.id) };
+}
+
+/**
+ * The workflow's invariants are scoped to this run, so transition() finds them.
+ * An invariant with no run is an invariant that never fires.
+ */
+async function copyInvariants(db: Db, runId: string, definition: WorkflowDefinition): Promise<void> {
+  const existing = await db.select().from(invariants).where(eq(invariants.runId, runId));
+  if (existing.length > 0) return;
   for (const invariant of definition.invariants) {
     await db.insert(invariants).values({
       id: newId("inv"),
@@ -95,9 +118,83 @@ async function createRows(runtime: Runtime, runId: string, definition: WorkflowD
       severity: invariant.severity,
     });
   }
+}
 
-  runtime.log(`planned ${rows.length} rows for ${definition.metadata.name}`, { runId });
-  return { rowIds: rows.map((r) => r.id) };
+/**
+ * A batch workflow's rows come from where its definition says they come from:
+ * a fixture, or a connector that emits them. The columns are the steps, and each
+ * one waits for a person to fill it.
+ */
+async function createBatchRows(
+  runtime: Runtime,
+  runId: string,
+  definition: WorkflowDefinition,
+): Promise<{ sheetId: string; rowIds: string[] }> {
+  const { db } = runtime;
+  const [run] = await db.select().from(runs).where(eq(runs.id, runId)).limit(1);
+  if (!run) throw new Error(`no run ${runId}`);
+  const requester = await workerById(db, run.requestedBy);
+
+  const seed = definition.records?.seed;
+  let rows: { id?: string; kind: string; fields: Record<string, unknown> }[] = [];
+  const table = definition.records?.table ?? "row";
+
+  if (seed?.from === "fixture" && seed.path) {
+    const loaded = fixture<{ rows: Record<string, unknown>[] }>(seed.path);
+    rows = loaded.rows.map((fields) => ({
+      id: typeof fields.id === "string" ? fields.id : undefined,
+      kind: table,
+      fields,
+    }));
+  } else if (seed?.from === "connector" && seed.op) {
+    const listed = await runtime.registry.call(seed.op, seed.args, {
+      actor: { ...requester, canTouch: [...requester.canTouch, seed.op] },
+      now: runtime.now(),
+    });
+    const items = (listed.data as Record<string, unknown>[]) ?? [];
+    rows = items.map((item, index) => ({
+      id: `${table}_${index + 1}_${newId("r").slice(2)}`,
+      kind: table,
+      fields: item,
+    }));
+  }
+
+  const columns: ColumnSpec[] = [
+    ...columnsOf(definition.records?.columns ?? []),
+    ...definition.columns.map<ColumnSpec>((column) => ({
+      name: column.name,
+      type: column.type as ColumnType,
+      config: {
+        owner: column.owner ? resolveOwner(definition, column.owner) : undefined,
+        check: column.check,
+        check_params: column.check_params,
+        evidence: column.evidence,
+        goal: column.note ?? `Run ${column.name} for this row.`,
+        blocked_by: column.blocked_by,
+        condition: column.condition,
+        options: column.options,
+      },
+    })),
+  ];
+
+  const created = await createBatchSheet(db, {
+    runId,
+    name: `${definition.metadata.name}: ${run.goal}`,
+    columns,
+    rows,
+    actorId: run.requestedBy,
+  });
+
+  runtime.log(`planned a batch sheet of ${created.rowIds.length} rows for ${definition.metadata.name}`, { runId });
+  return { sheetId: created.sheet.id, rowIds: created.rowIds };
+}
+
+function columnsOf(declared: Record<string, unknown>[]): ColumnSpec[] {
+  return declared.map((column) => ({
+    name: String(column.name ?? ""),
+    type: (String(column.type ?? "text") as ColumnType) ?? "text",
+    config: {},
+  }));
 }
 
 /**

@@ -164,11 +164,18 @@ async function attachDeclaredArtefacts(args: {
     if (present.has(kind)) continue;
     const value = args.outputs[kind];
     if (value === undefined || value === null || value === "") continue;
+    // An artefact that is an object is the evidence body, so a check reads it
+    // the same way it reads a connector's result. Anything else is wrapped.
+    const body =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? { ...(value as Record<string, unknown>), produced_by: args.worker.id, artefact: true }
+        : { value, produced_by: args.worker.id, artefact: true };
+
     attached.push(
       await attachEvidence(args.db, {
         contractId: args.contract.id,
         kind,
-        body: { value, produced_by: args.worker.id, artefact: true },
+        body,
         createdBy: args.worker.id,
       }),
     );

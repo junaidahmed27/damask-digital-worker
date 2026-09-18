@@ -1,0 +1,27 @@
+{
+  "note": "An invented Affinity export. Halloran Speciality is the trap in the sourcing workflow: the firm passed on it eighteen months ago, and a lead memo that does not say why is refused by lead_not_in_crm.",
+  "organisations": [
+    {
+      "id": "AFF-204",
+      "name": "Halloran Speciality Labs",
+      "domain": "halloranspeciality.example.test",
+      "lists": ["Sourcing pipeline", "Passed 2025"],
+      "stage": "passed",
+      "last_interaction": "2025-03-11T00:00:00Z",
+      "passed_before": true,
+      "passed_reason": "Opening leverage of 7.10 and a single payer at 61 percent of revenue. Outside mandate on both.",
+      "passed_at": "2025-03-11T00:00:00Z"
+    },
+    {
+      "id": "AFF-311",
+      "name": "Calder Peak Partners",
+      "domain": "calderpeak.example.test",
+      "lists": ["Sponsors"],
+      "stage": "active",
+      "last_interaction": "2025-09-02T00:00:00Z",
+      "passed_before": false,
+      "passed_reason": null,
+      "passed_at": null
+    }
+  ]
+}

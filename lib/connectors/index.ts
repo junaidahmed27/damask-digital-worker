@@ -1,3 +1,6 @@
+import type { Db } from "@/lib/db/client";
+import { createAffinityConnector, affinityConfigFromEnv, createAffinitySimulator } from "./crm/affinity";
+import { createMemoryConnector } from "./memory/connector";
 import { createChatSimulator } from "./chat/simulator";
 import { createSlackConnector, slackConfigFromEnv } from "./chat/slack";
 import { createDocsSimulator } from "./docs/simulator";
@@ -17,6 +20,13 @@ export type RegistryOptions = {
   /** Forces every connector to its simulator, whatever the environment holds. */
   simulatorsOnly?: boolean;
   dataDir?: string;
+  /**
+   * The memory connector is only wired in when there is a database to read, and
+   * it is given the scopes the requester holds so an agent inherits their scope
+   * and never more.
+   */
+  db?: Db;
+  scopes?: string[];
 };
 
 /**
@@ -34,6 +44,8 @@ export function createRegistry(options: RegistryOptions = {}): ConnectorRegistry
   const slack = simulatorsOnly ? null : slackConfigFromEnv();
   const googleJson = simulatorsOnly ? undefined : process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
+  const affinity = simulatorsOnly ? null : affinityConfigFromEnv();
+
   const connectors: Connector[] = [
     workday ? createWorkdayConnector(workday) : createHrisSimulator(),
     okta ? createOktaConnector(okta) : createIdpSimulator(),
@@ -49,6 +61,8 @@ export function createRegistry(options: RegistryOptions = {}): ConnectorRegistry
         })
       : createDocsSimulator(`${dataDir}/docs`),
     createMailSandbox(`${dataDir}/mail`),
+    affinity ? createAffinityConnector(affinity) : createAffinitySimulator(),
+    ...(options.db ? [createMemoryConnector(options.db, { scopes: options.scopes })] : []),
   ];
 
   return new ConnectorRegistry().register(...connectors);

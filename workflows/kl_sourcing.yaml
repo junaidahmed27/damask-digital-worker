@@ -1,0 +1,166 @@
+# Deal Origination, as specified in part B.2 of the memory specification.
+# One row per candidate opportunity; the columns are the steps.
+metadata:
+  name: kl_sourcing
+  version: 1
+  pack: credit
+  shape: batch
+  owner: sourcing_lead
+
+intent:
+  patterns: [find leads, leads in, candidate borrowers, sourcing, deal origination]
+  examples:
+    - find five leads in specialty pharma for the core lending fund
+
+records:
+  table: candidate_opportunity
+  seed: {from: fixture, path: kl/candidates.json}
+  columns:
+    - {name: company, type: entity, kind: borrower}
+    - {name: sector, type: text}
+    - {name: source, type: text}
+    - {name: size_estimate_usd, type: number}
+    - {name: theme, type: entity, kind: theme}
+    - {name: found_at, type: date}
+
+inputs:
+  themes_in_force: {source: memory.rules, filter: theme}
+  mandate_rules: {source: memory.rules, filter: mandate_rule}
+  deployment_gap_usd: {source: connector.snowflake, query: liquidity_model.gap_current_quarter}
+  pipeline_expected_close_usd: {source: connector.snowflake, query: pipeline.expected_close}
+
+workers:
+  - name: Scout
+    kind: agent
+    places: [sheet, slack]
+    tools: [memory.compile_context, memory.decision_records, crm.lookup, files.list, files.read]
+    never_without_human: [crm.create, outreach.send]
+    prompt: >
+      You find candidate borrowers on the themes in force and say where you found
+      each one. Look every candidate up in the CRM before anything else, and when
+      the firm has seen it before, carry what happened last time onto the row. A
+      candidate somebody is about to chase for the second time without knowing is
+      the thing this column exists to prevent.
+  - name: Profiler
+    kind: agent
+    places: [sheet]
+    tools: [memory.compile_context, files.read]
+    prompt: >
+      Build the profile from facts that cite their source. Every number you write
+      must come from the bundle with its span, and a number you cannot cite is a
+      number you do not write.
+  - name: Screener
+    kind: agent
+    places: [sheet]
+    tools: [memory.compile_context]
+    prompt: >
+      Evaluate the mandate rules deterministically and record every rule's result,
+      including the ones you could not evaluate. An unknown is not a pass.
+  - name: Writer
+    kind: agent
+    places: [sheet, gdoc]
+    tools: [memory.compile_context, memory.decision_records, docs.write_section]
+    prompt: >
+      Write the memo with considerations, downsides and comparable history drawn
+      from the firm's own passes and pursues. No recommendation section and no
+      verdict: the sourcing lead decides, not you.
+  - name: CRMWriter
+    kind: agent
+    places: [sheet]
+    tools: [crm.create, crm.update]
+    prompt: Create the CRM record once, after a person has accepted the lead.
+  - name: sourcing_lead
+    kind: person
+    role: approver
+  - name: sourcing_analyst
+    kind: person
+
+columns:
+  - name: crm_history
+    owner: Scout
+    type: agent_step
+    check: crm_lookup_recorded
+    evidence: [affinity_record_or_none]
+    note: known, passed before with reason and date, or new
+  - name: profile
+    owner: Profiler
+    type: agent_step
+    check: citations_resolve
+    evidence: [facts_cited]
+    blocked_by: [crm_history]
+  - name: mandate_fit
+    owner: Screener
+    type: agent_step
+    check: mandate_fit_rules
+    evidence: [rule_evaluations]
+    blocked_by: [profile]
+    note: deterministic first; the agent explains only the borderline
+  - name: lead_memo
+    owner: Writer
+    type: agent_step
+    check: memo_has_considerations
+    check_params:
+      required_sections: [considerations, downsides, comparable history]
+      forbidden_sections: [recommendation, verdict]
+    evidence: [memo_text, decision_records_cited]
+    blocked_by: [mandate_fit]
+  - name: decision
+    owner: sourcing_lead
+    type: approval
+    check: human_accepted_lead
+    evidence: []  # the decision is the evidence, and it is recorded when it is made
+    options: [accept, park, reject]
+    requires_reason: true
+    blocked_by: [lead_memo]
+  - name: crm_write
+    owner: CRMWriter
+    type: agent_step
+    check: crm_record_created
+    evidence: [affinity_record_id]
+    blocked_by: [decision]
+    condition: decision == accept
+  - name: outreach_draft
+    owner: Writer
+    type: agent_step
+    check: evidence_present
+    evidence: [draft_text]
+    blocked_by: [crm_write]
+    note: drafted for the person; the person sends
+
+checks:
+  - {id: crm_lookup_recorded}
+  - {id: citations_resolve}
+  - {id: mandate_fit_rules}
+  - {id: memo_has_considerations}
+  - {id: human_accepted_lead}
+  - {id: crm_record_created}
+  - {id: evidence_present}
+  - {id: lead_not_in_crm}
+
+invariants:
+  - {name: no_crm_write_without_accept, expr: "crm_write.outputs.record_id => crm_write.inputs.decision == accept", severity: block}
+  - {name: no_outreach_by_agent, expr: "outreach_draft.outputs.sent => outreach_draft.sent_by.kind == person", severity: block}
+  - {name: no_recommendation_language, expr: "NOT lead_memo.outputs.memo.contains(['we should invest', 'recommend investing'])", severity: escalate}
+
+rules:
+  - {name: nudge_decision, trigger: {kind: days_since, field: memo_written_at, gt: 5}, actions: [{kind: remind, who: owner, text: "this lead memo has been waiting five days for a decision"}]}
+
+approvals:
+  - {check: human_accepted_lead, by: [sourcing_lead]}
+
+outputs:
+  - {target: crm.affinity, when: "decision == accept", payload: [company, source, profile, lead_memo, theme]}
+  - {target: memory.decision_record, when: "decision recorded", payload: [company, decision, reason, decided_by, facts_cited]}
+
+signals:
+  - {kind: accept_reject_reason, trains: [ranking_reward, theme_defaults]}
+  - {kind: memo_edit, trains: [writer_defaults]}
+
+bench:
+  - {name: historical_leads, grade: "passed before is flagged 100 percent of the time"}
+  - {name: citation_resolvability, grade: "100 percent of memo citations reopen from source"}
+
+simulators:
+  - {connector: crm, mode: fixtures}
+  - {connector: files, mode: fixtures}
+  - {connector: memory, mode: ledger}

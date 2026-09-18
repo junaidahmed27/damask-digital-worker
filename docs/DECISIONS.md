@@ -287,3 +287,43 @@ instant returned neither the old fact nor the new one. Both now share one instan
 so a read as of any instant returns exactly one of them and there is never a gap.
 This is the kind of defect that only shows up when something actually asks "what
 did we believe then", which is what the context compiler does.
+
+## D-29. The credit pack is added to the check registry, additively
+
+Confirmed with a human, since `lib/ledger/checks/**` is a protected zone. The
+change is one new file, `lib/ledger/checks/credit.ts`, and three lines in
+`checks/index.ts` to import it, register it beside the packs already there, and
+re export it. Nothing in the common or onboarding packs is touched, no existing
+check's behaviour changes, and the Day One run is byte for byte what it was, which
+the gate proves.
+
+## D-30. A workflow's declared people are seeded as workers
+
+The Kennedy Lewis workflows name `sourcing_lead`, `sourcing_analyst` and
+`credit_analyst` as workers. Seeding skipped every declared worker of kind person,
+so those roles did not exist, and the first row a decision column created had no
+owner and escalated on the spot. A role a workflow names has to exist as a worker
+or the workflow cannot run. A deployment maps these role holders onto real
+identities; here they are seeded as themselves.
+
+## D-31. A column of decisions is filled the same way a column of work is
+
+`runColumn` handled `agent_step` columns only, so the sourcing workflow's
+`decision` column could not be filled at all. A column of decisions and a column
+of work are both filled per row; the difference is who owns each cell and what
+settles it. An approval column names its own approver, and a row whose check is a
+person's decision goes straight to the decision rather than waiting to be picked
+up, because the decision is the work.
+
+Two consequences worth stating. A pure decision row has no evidence before the
+decision, so its `evidence` list is empty and the decision itself is attached as
+evidence the moment it is made, whichever way it went. And an artefact an agent
+produces that is an object is now the evidence body rather than being wrapped in
+one, so a check reads an agent's artefact exactly as it reads a connector's result.
+
+## D-32. A count and a plural noun makes a batch ask, whatever the noun
+
+The planner's shape rule listed the plural nouns it recognised, so "find five
+leads" was a batch ask and "find five suppliers" was not. A count followed by any
+plural noun is a list of things to process. The named list is kept for asks that
+carry no count.

@@ -1,9 +1,10 @@
 import { commonChecks } from "./common";
+import { creditChecks } from "./credit";
 import { onboardingChecks } from "./onboarding";
 import { CheckRegistry } from "./registry";
 
 /** The one registry every surface, agent and function reads. */
-export const checks = new CheckRegistry().register(...commonChecks, ...onboardingChecks);
+export const checks = new CheckRegistry().register(...commonChecks, ...onboardingChecks, ...creditChecks);
 
 /**
  * True when only a person can settle this check. A composite check inherits the
@@ -26,3 +27,4 @@ export function requiresHumanApproval(
 export * from "./registry";
 export { commonChecks } from "./common";
 export { onboardingChecks } from "./onboarding";
+export { creditChecks } from "./credit";

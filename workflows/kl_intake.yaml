@@ -1,0 +1,81 @@
+# Document intake, as specified in part B of the memory specification.
+# One row per document; the columns are the steps. Ambiguous items go to a person.
+metadata:
+  name: kl_intake
+  version: 1
+  pack: credit
+  shape: batch
+  owner: credit_analyst
+
+intent:
+  patterns: [classify the documents, document intake, file the documents, data room]
+  examples:
+    - classify everything in the new data room folder and link it to a deal
+
+records:
+  table: document
+  seed: {from: connector, op: files.list, args: {folder: meridian}}
+  columns:
+    - {name: path, type: text}
+    - {name: sha256, type: text}
+    - {name: found_at, type: date}
+
+workers:
+  - name: Classifier
+    kind: agent
+    places: [sheet]
+    tools: [files.read, files.list, memory.compile_context]
+    never_without_human: [delete_document, move_document]
+    prompt: >
+      Classify the document against the pack's taxonomy and link it to the deal it
+      belongs to, using the identifier in it where there is one. Say how you made
+      the link and attach the evidence for it. When two deals could both be right,
+      refuse and let a person decide: a document filed confidently against the
+      wrong deal is worse than one left in the queue.
+  - name: credit_analyst
+    kind: person
+    role: approver
+
+columns:
+  - name: classify
+    owner: Classifier
+    type: agent_step
+    check: evidence_present
+    evidence: [file_read]
+  - name: link_to_deal
+    owner: Classifier
+    type: agent_step
+    check: document_linked_to_deal
+    evidence: [link_evidence]
+    blocked_by: [classify]
+  - name: review_ambiguous
+    owner: credit_analyst
+    type: approval
+    check: human_reviewed
+    evidence: []  # the decision is the evidence, and it is recorded when it is made
+    condition: link_to_deal.ambiguous
+    blocked_by: [link_to_deal]
+
+checks:
+  - {id: evidence_present}
+  - {id: document_linked_to_deal}
+  - {id: human_reviewed}
+
+invariants:
+  - {name: no_link_without_evidence, expr: "link_to_deal.outputs.deal_id => link_to_deal.outputs.method != guess", severity: block}
+
+approvals:
+  - {check: human_reviewed, by: [credit_analyst]}
+
+outputs:
+  - {target: memory.entity_link, when: "link_to_deal verified", payload: [path, deal_id, method, evidence]}
+
+signals:
+  - {kind: link_corrected, trains: [resolver_defaults]}
+
+bench:
+  - {name: linkage_precision, grade: "90 percent on the reviewed sample"}
+
+simulators:
+  - {connector: files, mode: fixtures}
+  - {connector: memory, mode: ledger}

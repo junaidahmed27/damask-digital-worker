@@ -11,6 +11,8 @@ export type RuntimeOptions = {
   now?: () => Date;
   log?: (line: string, detail?: Record<string, unknown>) => void;
   verbose?: boolean;
+  /** The scopes the runtime's reads are allowed to reach. */
+  scopes?: string[];
 };
 
 /**
@@ -23,7 +25,7 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
   const lines: string[] = [];
   return {
     db,
-    registry: options.registry ?? createRegistry(),
+    registry: options.registry ?? createRegistry({ db, scopes: options.scopes }),
     provider: options.provider ?? createProvider(),
     channel: options.channel ?? process.env.SLACK_CHANNEL ?? "#ledger",
     now: options.now ?? (() => new Date()),

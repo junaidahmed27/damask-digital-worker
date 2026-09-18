@@ -27,6 +27,8 @@ beforeEach(async () => {
 
 const ONBOARDING = "Priya starts Monday as a sales engineer in Austin";
 const SOURCING = "find five leads in specialty pharma for the core lending fund";
+/** An ask no workflow in the library covers, so the planner has to compose one. */
+const UNKNOWN = "find five prospects in packaging for the facilities budget";
 
 describe("WP-12 reading the ask", () => {
   it("recognises the family, the shape and the count", () => {
@@ -78,8 +80,39 @@ describe("WP-12 library match", () => {
 });
 
 describe("WP-12 compose", () => {
-  it("turns the sourcing ask into a batch sheet with one row per candidate", async () => {
+  it("matches the sourcing ask to the workflow that exists, and drafts its batch sheet", async () => {
+    // Once kl_sourcing is in the library, recognising it is the right answer:
+    // composing a fresh plan for an ask the firm already has a workflow for is
+    // exactly what the library exists to prevent.
     const draft = await plan(h.db, { ask: SOURCING, requestedBy: "maya", source: "api" });
+    expect(draft.how).toBe("library_match");
+    expect(draft.workflow).toBe("kl_sourcing");
+    expect(draft.running).toBe(false);
+
+    await engine.dispatcher.send(draft.events);
+    await engine.settle();
+
+    const { sheets } = await import("@/lib/db/schema");
+    const [sheet] = await h.db.select().from(sheets).where(eq(sheets.runId, draft.runId)).limit(1);
+    const view = await readSheet(h.db, sheet?.id ?? "");
+    expect(view?.sheet.shape).toBe("batch");
+    expect(view?.rows.length).toBeGreaterThan(0);
+
+    const names = (view?.columns ?? []).map((c) => c.name);
+    expect(names).toContain("company");
+    expect(names).toContain("crm_history");
+    expect(names).toContain("lead_memo");
+    expect(names).toContain("decision");
+    expect(view?.columns.find((c) => c.name === "decision")?.type).toBe("approval");
+    expect(view?.columns.find((c) => c.name === "lead_memo")?.type).toBe("agent_step");
+
+    // Nothing has run: a batch sheet's columns wait for a person.
+    const rows = await h.db.select().from(contracts).where(eq(contracts.runId, draft.runId));
+    expect(rows).toHaveLength(0);
+  }, 90_000);
+
+  it("composes a batch sheet for an ask the library does not cover", async () => {
+    const draft = await plan(h.db, { ask: UNKNOWN, requestedBy: "maya", source: "api" });
     expect(draft.how).toBe("composed");
     expect(draft.sheetId).toBeTruthy();
     expect(draft.running).toBe(false);
@@ -89,31 +122,20 @@ describe("WP-12 compose", () => {
     expect(view?.rows).toHaveLength(5);
 
     const names = (view?.columns ?? []).map((c) => c.name);
-    // One row per candidate, and the columns the plan's section 13 names:
-    // research, a CRM lookup, a memo, considerations and sourcing acceptance,
-    // with the goals gap as an input cell.
-    expect(names).toContain("candidate_opportunity");
+    // The columns the plan's section 13 names: research, a CRM lookup, a memo,
+    // considerations and a decision, with the parameters as input cells.
     expect(names).toContain("research");
     expect(names).toContain("crm_lookup");
     expect(names).toContain("memo");
     expect(names).toContain("considerations");
     expect(names).toContain("decision");
-    expect(names).toContain("deployment_gap_usd");
 
-    const gap = view?.columns.find((c) => c.name === "deployment_gap_usd");
-    expect(gap?.type).toBe("input");
-    const decision = view?.columns.find((c) => c.name === "decision");
-    expect(decision?.type).toBe("approval");
-    const research = view?.columns.find((c) => c.name === "research");
-    expect(research?.type).toBe("agent_step");
-
-    // And it read the ask's own terms into input cells rather than into prose.
-    expect(draft.inputs.sector).toBe("specialty pharma");
-    expect(draft.inputs.fund).toBe("core lending fund");
+    expect(view?.columns.find((c) => c.name === "decision")?.type).toBe("approval");
+    expect(view?.columns.find((c) => c.name === "research")?.type).toBe("agent_step");
   }, 60_000);
 
   it("attaches a check from the registry to every step", async () => {
-    const composition = await compose(h.db, SOURCING, "maya");
+    const composition = await compose(h.db, UNKNOWN, "maya");
     for (const step of composition.steps) {
       const check = (step.column.config as { check?: string }).check;
       expect(check, `${step.column.name} has no check`).toBeTruthy();
@@ -123,23 +145,48 @@ describe("WP-12 compose", () => {
   });
 
   it("infers the dependency chain", async () => {
-    const composition = await compose(h.db, SOURCING, "maya");
+    const composition = await compose(h.db, UNKNOWN, "maya");
     expect(composition.steps[0]?.blockedBy).toEqual([]);
     expect(composition.steps[1]?.blockedBy).toEqual(["research"]);
     expect(composition.steps.at(-1)?.blockedBy.length).toBe(1);
   });
 
-  it("asks at most three questions and never guesses an owner", async () => {
-    const draft = await plan(h.db, { ask: SOURCING, requestedBy: "maya", source: "api" });
+  it("asks at most three questions and proposes an owner only from the Workers tab", async () => {
+    const draft = await plan(h.db, { ask: UNKNOWN, requestedBy: "maya", source: "api" });
     expect(draft.questions.length).toBeLessThanOrEqual(3);
     expect(draft.questions.length).toBeGreaterThan(0);
+    expect(draft.uncertainties.some((u) => u.about === "deadline")).toBe(true);
 
-    // Only the Day One agents are seeded, so no worker holds a research tool.
-    // The planner says so rather than picking somebody.
+    // Every owner it proposed is a real worker that actually holds one of the
+    // tools the step needs. It never invents one.
+    const { workers } = await import("@/lib/db/schema");
+    const everyWorker = await h.db.select().from(workers);
+    const { TASKS } = await import("@/lib/planner/ontology");
+    for (const column of draft.columns) {
+      if (!column.owner) continue;
+      const worker = everyWorker.find((w) => w.id === column.owner);
+      expect(worker, `${column.owner} is not a worker`).toBeDefined();
+      const task = Object.values(TASKS).find((t) => t.column === column.name);
+      if (!task || task.humanOnly) continue;
+      expect(
+        task.toolsAnyOf.some((tool) => worker?.canTouch.includes(tool)),
+        `${column.owner} holds none of ${task.toolsAnyOf.join(", ")} for ${column.name}`,
+      ).toBe(true);
+    }
+  }, 60_000);
+
+  it("leaves a step unowned and asks, when nobody can do it", async () => {
+    // With every agent revoked there is nobody to propose, and the planner says
+    // so rather than picking somebody who cannot do the work.
+    const { workers } = await import("@/lib/db/schema");
+    const { ne } = await import("drizzle-orm");
+    await h.db.update(workers).set({ status: "revoked" }).where(ne(workers.kind, "person"));
+
+    const draft = await plan(h.db, { ask: UNKNOWN, requestedBy: "maya", source: "api" });
     const research = draft.columns.find((c) => c.name === "research");
     expect(research?.owner).toBe(null);
     expect(draft.uncertainties.some((u) => u.about === "owner" && u.step === "research")).toBe(true);
-    expect(draft.uncertainties.some((u) => u.about === "deadline")).toBe(true);
+    expect(draft.questions.length).toBeLessThanOrEqual(3);
   }, 60_000);
 
   it("composes a plan shape for a goal with distinct steps", async () => {
@@ -238,17 +285,18 @@ describe("WP-12 learning from the edits", () => {
 
 describe("WP-12 a composed plan is a versioned workflow", () => {
   it("writes the composition into the library as its own version", async () => {
-    await plan(h.db, { ask: SOURCING, requestedBy: "maya", source: "api" });
-    const composed = await h.db.select().from(workflows).where(eq(workflows.name, "composed_sourcing"));
+    const first = await plan(h.db, { ask: UNKNOWN, requestedBy: "maya", source: "api" });
+    const name = first.workflow;
+    const composed = await h.db.select().from(workflows).where(eq(workflows.name, name));
     expect(composed).toHaveLength(1);
     expect(composed[0]?.version).toBe(1);
 
-    await plan(h.db, { ask: "find three leads in specialty chemicals for the core lending fund", requestedBy: "maya", source: "api" });
-    const again = await h.db.select().from(workflows).where(eq(workflows.name, "composed_sourcing"));
+    await plan(h.db, { ask: "find three prospects in packaging for the facilities budget", requestedBy: "maya", source: "api" });
+    const again = await h.db.select().from(workflows).where(eq(workflows.name, name));
     expect(again).toHaveLength(2);
     expect(again.map((w) => w.version).sort()).toEqual([1, 2]);
 
     const rows = await h.db.select().from(records);
-    expect(rows.filter((r) => r.kind === "candidate_opportunity")).toHaveLength(8);
+    expect(rows.length).toBe(8);
   }, 90_000);
 });

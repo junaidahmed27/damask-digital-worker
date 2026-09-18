@@ -176,7 +176,9 @@ export function createScriptedProvider(scripts?: AgentScripts): ModelProvider {
     async complete(request) {
       if (!loaded) {
         const { fixture } = await import("@/lib/fixtures");
-        loaded = fixture<AgentScripts>("day_one/agent_scripts.json");
+        // One script library, assembled from every pack's own file, so a pack
+        // brings its agents' recorded behaviour with it.
+        loaded = { ...fixture<AgentScripts>("day_one/agent_scripts.json"), ...fixture<AgentScripts>("kl/agent_scripts.json") };
       }
       const context = request.context;
       if (!context) throw new Error("the scripted provider needs a context");

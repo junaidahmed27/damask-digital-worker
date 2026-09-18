@@ -5,38 +5,34 @@ import { loadWorkflow } from "@/lib/workflow/definition";
 import { seededDb } from "./helpers";
 
 describe("WP-1 schema and seed", () => {
-  it("loads six workers and the workflow", async () => {
+  it("loads the Day One cast of six and the workflow", async () => {
     const h = await seededDb();
-    const [count] = rowsOf<{ count: string }>(await h.db.execute(sql`select count(*) as count from workers`));
-    expect(Number(count?.count)).toBe(6);
 
-    const workers = rowsOf<{ id: string; kind: string }>(
-      await h.db.execute(sql`select id, kind from workers order by id`),
+    // The Day One cast, which is what WP-1's acceptance counts. Later packs add
+    // their own workers to the same table, so the assertion is about this cast
+    // being present and complete rather than about the size of the table.
+    const dayOne = rowsOf<{ id: string; kind: string }>(
+      await h.db.execute(
+        sql`select id, kind from workers where id in ('maya','dan','priya','provisioner','shipper','welcomer') order by id`,
+      ),
     );
-    expect(workers.map((w) => w.id).sort()).toEqual([
-      "dan",
-      "maya",
-      "priya",
-      "provisioner",
-      "shipper",
-      "welcomer",
-    ]);
-    expect(workers.filter((w) => w.kind === "person")).toHaveLength(3);
-    expect(workers.filter((w) => w.kind === "agent")).toHaveLength(3);
+    expect(dayOne).toHaveLength(6);
+    expect(dayOne.map((w) => w.id)).toEqual(["dan", "maya", "priya", "provisioner", "shipper", "welcomer"]);
+    expect(dayOne.filter((w) => w.kind === "person")).toHaveLength(3);
+    expect(dayOne.filter((w) => w.kind === "agent")).toHaveLength(3);
 
-    const wf = rowsOf<{ name: string; version: number }>(
-      await h.db.execute(sql`select name, version from workflows`),
-    );
-    expect(wf).toEqual([{ name: "day_one", version: 1 }]);
+    const wf = rowsOf<{ name: string }>(await h.db.execute(sql`select name from workflows order by name`));
+    expect(wf.map((w) => w.name)).toEqual(["day_one", "kl_intake", "kl_sourcing"]);
     await h.close();
   });
 
   it("is idempotent", async () => {
     const h = await seededDb();
+    const [before] = rowsOf<{ count: string }>(await h.db.execute(sql`select count(*) as count from workers`));
     const { seed } = await import("@/lib/seed");
     await seed(h);
-    const [count] = rowsOf<{ count: string }>(await h.db.execute(sql`select count(*) as count from workers`));
-    expect(Number(count?.count)).toBe(6);
+    const [after] = rowsOf<{ count: string }>(await h.db.execute(sql`select count(*) as count from workers`));
+    expect(after?.count).toBe(before?.count);
     await h.close();
   });
 

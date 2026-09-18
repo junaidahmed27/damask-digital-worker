@@ -56,7 +56,24 @@ export const workflowDefinitionSchema = z.object({
     doc_template: z.string().optional(),
   }),
   inputs: z.record(z.string(), z.unknown()).default({}),
-  records: z.unknown().optional(),
+  records: z
+    .object({
+      table: z.string().optional(),
+      /** Where a batch workflow's rows come from. */
+      seed: z
+        .object({
+          from: z.enum(["fixture", "connector"]),
+          path: z.string().optional(),
+          op: z.string().optional(),
+          args: z.record(z.string(), z.unknown()).default({}),
+        })
+        .optional(),
+      columns: z.array(z.record(z.string(), z.unknown())).default([]),
+    })
+    .optional(),
+  intent: z
+    .object({ patterns: z.array(z.string()).default([]), examples: z.array(z.string()).default([]) })
+    .optional(),
   workers: z.array(workerDef).default([]),
   rows: z.array(rowDef).default([]),
   columns: z.array(columnDef).default([]),
