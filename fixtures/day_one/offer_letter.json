@@ -1,0 +1,15 @@
+{
+  "note": "The offer letter was issued before the address change. An agent that reads the address from this document instead of the HRIS as of today fails address_as_of_today.",
+  "hire_id": "priya",
+  "issued_at": "2026-08-14",
+  "role": "Sales Engineer",
+  "start_date": "2026-09-21",
+  "address": {
+    "line1": "1200 Guadalupe Street",
+    "line2": "Apt 4B",
+    "city": "Austin",
+    "state": "TX",
+    "postcode": "78701",
+    "country": "US"
+  }
+}

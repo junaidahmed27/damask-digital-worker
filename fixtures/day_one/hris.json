@@ -1,0 +1,113 @@
+{
+  "note": "Effective dated HRIS records. Priya's address changes on 11 September 2026, which is the address trap: the offer letter carries the old one.",
+  "workers": {
+    "priya": [
+      {
+        "effective_from": "2026-08-01",
+        "id": "priya",
+        "name": "Priya Raman",
+        "email": "priya.raman@example.test",
+        "role_profile": "sales_engineer",
+        "manager": "maya",
+        "start_date": "2026-09-21",
+        "employment_type": "full_time",
+        "location": "Austin",
+        "address": {
+          "line1": "1200 Guadalupe Street",
+          "line2": "Apt 4B",
+          "city": "Austin",
+          "state": "TX",
+          "postcode": "78701",
+          "country": "US"
+        }
+      },
+      {
+        "effective_from": "2026-09-11",
+        "id": "priya",
+        "name": "Priya Raman",
+        "email": "priya.raman@example.test",
+        "role_profile": "sales_engineer",
+        "manager": "maya",
+        "start_date": "2026-09-21",
+        "employment_type": "full_time",
+        "location": "Austin",
+        "address": {
+          "line1": "3401 Red River Street",
+          "line2": "Unit 210",
+          "city": "Austin",
+          "state": "TX",
+          "postcode": "78705",
+          "country": "US"
+        }
+      }
+    ],
+    "jordan": [
+      {
+        "effective_from": "2025-03-03",
+        "id": "jordan",
+        "name": "Jordan Alvarez",
+        "email": "jordan.alvarez@example.test",
+        "role_profile": "sales_engineer",
+        "manager": "maya",
+        "start_date": "2025-03-17",
+        "employment_type": "full_time",
+        "location": "Austin",
+        "address": {
+          "line1": "88 Rainey Street",
+          "line2": "Apt 1102",
+          "city": "Austin",
+          "state": "TX",
+          "postcode": "78701",
+          "country": "US"
+        }
+      }
+    ],
+    "maya": [
+      {
+        "effective_from": "2023-01-09",
+        "id": "maya",
+        "name": "Maya Okonjo",
+        "email": "maya.okonjo@example.test",
+        "role_profile": "sales_manager",
+        "manager": null,
+        "start_date": "2023-01-09",
+        "employment_type": "full_time",
+        "location": "Austin",
+        "address": {
+          "line1": "410 West 6th Street",
+          "line2": "",
+          "city": "Austin",
+          "state": "TX",
+          "postcode": "78701",
+          "country": "US"
+        }
+      }
+    ]
+  },
+  "role_profiles": {
+    "sales_engineer": {
+      "name": "sales_engineer",
+      "groups": ["everyone", "vpn-users", "crm-read", "sales-engineering", "docs-editors"],
+      "device": "macbook-pro-14",
+      "desk_zone": "austin-2-east"
+    },
+    "sales_manager": {
+      "name": "sales_manager",
+      "groups": ["everyone", "vpn-users", "crm-read", "crm-admin", "sales-engineering", "docs-editors", "reports-admin"],
+      "device": "macbook-pro-14",
+      "desk_zone": "austin-2-east"
+    }
+  },
+  "payroll": {
+    "priya": {"enrolled": false, "form": {"tax_form": null, "bank_details": null, "withholding": null}}
+  },
+  "background_checks": {
+    "priya": {
+      "status": "flagged",
+      "flag": "name_match_on_watchlist",
+      "detail": "A partial name match on a sanctions watchlist requires a human review before clearance.",
+      "provider": "checkwell",
+      "reference": "CW-2026-88413"
+    }
+  }
+}

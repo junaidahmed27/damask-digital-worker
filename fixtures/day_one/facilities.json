@@ -1,0 +1,10 @@
+{
+  "buildings": {
+    "austin-2": {"name": "Austin 2", "badge_office": "Level 1 reception", "zones": ["austin-2-east", "austin-2-west"]}
+  },
+  "desks": {
+    "austin-2-east": ["E-14", "E-15", "E-16", "E-17"],
+    "austin-2-west": ["W-02", "W-03"]
+  },
+  "assigned": {"austin-2-east": ["E-14", "E-15"]}
+}

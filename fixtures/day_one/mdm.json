@@ -1,0 +1,7 @@
+{
+  "catalogue": {
+    "macbook-pro-14": {"sku": "MBP14-M4-32-1TB", "in_stock": 6, "weight_kg": 1.6},
+    "macbook-air-13": {"sku": "MBA13-M4-16-512", "in_stock": 11, "weight_kg": 1.24}
+  },
+  "images": {"sales_engineer": "corp-macos-2026.3", "sales_manager": "corp-macos-2026.3"}
+}

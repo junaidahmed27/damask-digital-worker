@@ -1,0 +1,6 @@
+{
+  "carrier": "swiftpost",
+  "service_levels": ["ground", "two_day", "overnight"],
+  "serviceable_postcodes": ["78701", "78702", "78703", "78704", "78705", "78712"],
+  "transit_days": {"ground": 4, "two_day": 2, "overnight": 1}
+}

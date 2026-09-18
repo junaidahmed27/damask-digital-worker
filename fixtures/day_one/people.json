@@ -1,0 +1,32 @@
+[
+  {
+    "id": "maya",
+    "name": "Maya Okonjo",
+    "kind": "person",
+    "identity": "clerk:maya",
+    "slack_user_id": "U0MAYA",
+    "places": ["slack", "sheet", "gdoc"],
+    "role": "approver",
+    "org_role": "owner"
+  },
+  {
+    "id": "dan",
+    "name": "Dan Whitfield",
+    "kind": "person",
+    "identity": "clerk:dan",
+    "slack_user_id": "U0DAN",
+    "places": ["slack", "sheet"],
+    "role": "approver",
+    "org_role": "approver"
+  },
+  {
+    "id": "priya",
+    "name": "Priya Raman",
+    "kind": "person",
+    "identity": "clerk:priya",
+    "slack_user_id": "U0PRIYA",
+    "places": ["slack"],
+    "role": "customer",
+    "org_role": "viewer"
+  }
+]

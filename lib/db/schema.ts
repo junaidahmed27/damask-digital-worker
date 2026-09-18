@@ -1,3 +1,365 @@
-// The ledger schema. Tables land in WP-1; this module exists from WP-0 so the
-// client and drizzle-kit have something to point at.
-export {};
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+
+const id = () => text("id").primaryKey();
+const now = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
+
+/** Organizations. One Neon database per tenant; orgs scope sheets inside one. */
+export const orgs = pgTable("orgs", {
+  id: id(),
+  name: text("name").notNull(),
+  createdAt: now(),
+});
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: id(),
+    orgId: text("org_id").notNull(),
+    workerId: text("worker_id").notNull(),
+    role: text("role").$type<"owner" | "editor" | "approver" | "viewer">().notNull(),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("memberships_org_worker").on(t.orgId, t.workerId)],
+);
+
+/** People and agents. Assignment, handoff, revocation and audit are identical. */
+export const workers = pgTable(
+  "workers",
+  {
+    id: id(),
+    orgId: text("org_id"),
+    name: text("name").notNull(),
+    kind: text("kind").$type<"person" | "agent" | "external_bot" | "imported">().notNull(),
+    identity: text("identity"),
+    slackUserId: text("slack_user_id"),
+    places: jsonb("places").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    canTouch: jsonb("can_touch").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    neverWithoutHuman: jsonb("never_without_human").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    role: text("role"),
+    status: text("status").$type<"active" | "revoked">().notNull().default("active"),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("workers_identity").on(t.identity)],
+);
+
+/** Workflows are data. A run pins a version. */
+export const workflows = pgTable(
+  "workflows",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    version: integer("version").notNull(),
+    definition: jsonb("definition").$type<Record<string, unknown>>().notNull(),
+    pack: text("pack").$type<"onboarding" | "credit">().notNull(),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("workflows_name_version").on(t.name, t.version)],
+);
+
+export const runs = pgTable("runs", {
+  id: id(),
+  workflowId: text("workflow_id").notNull(),
+  workflowVersion: integer("workflow_version").notNull(),
+  goal: text("goal").notNull(),
+  requestedBy: text("requested_by").notNull(),
+  status: text("status").$type<"drafted" | "running" | "done" | "failed">().notNull().default("drafted"),
+  namespace: text("namespace").$type<"live" | "rehearsal">().notNull().default("live"),
+  deadline: timestamp("deadline", { withTimezone: true }),
+  budgetTokens: integer("budget_tokens"),
+  budgetUsd: numeric("budget_usd", { precision: 10, scale: 2 }),
+  createdAt: now(),
+});
+
+/** One row per unit of work. The row is the product. */
+export const contracts = pgTable(
+  "contracts",
+  {
+    id: id(),
+    runId: text("run_id").notNull(),
+    parentId: text("parent_id"),
+    key: text("key").notNull(),
+    title: text("title").notNull(),
+    goal: text("goal").notNull(),
+    ownerId: text("owner_id"),
+    state: text("state").$type<ContractState>().notNull().default("drafted"),
+    checkId: text("check_id"),
+    checkParams: jsonb("check_params").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    evidenceRequired: jsonb("evidence_required").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    inputs: jsonb("inputs").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    outputs: jsonb("outputs").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    budget: jsonb("budget").$type<{ steps?: number; tokens?: number }>().notNull().default(sql`'{}'::jsonb`),
+    deadline: timestamp("deadline", { withTimezone: true }),
+    escalationTo: text("escalation_to"),
+    blockedBy: jsonb("blocked_by").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(2),
+    confidence: numeric("confidence", { precision: 4, scale: 3 }),
+    position: integer("position").notNull().default(0),
+    createdAt: now(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("contracts_run_state").on(t.runId, t.state),
+    uniqueIndex("contracts_run_key").on(t.runId, t.key),
+  ],
+);
+
+/** Append only, hash chained. Never updated, never deleted. */
+export const transitions = pgTable(
+  "transitions",
+  {
+    id: id(),
+    contractId: text("contract_id").notNull(),
+    seq: integer("seq").notNull(),
+    fromState: text("from_state"),
+    toState: text("to_state").notNull(),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason"),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+    prevHash: text("prev_hash").notNull(),
+    hash: text("hash").notNull(),
+  },
+  (t) => [
+    index("transitions_contract_recorded").on(t.contractId, t.recordedAt),
+    uniqueIndex("transitions_contract_seq").on(t.contractId, t.seq),
+  ],
+);
+
+export const evidence = pgTable(
+  "evidence",
+  {
+    id: id(),
+    contractId: text("contract_id").notNull(),
+    kind: text("kind").notNull(),
+    uri: text("uri"),
+    body: jsonb("body").$type<Record<string, unknown>>(),
+    sha256: text("sha256").notNull(),
+    sourceConnector: text("source_connector"),
+    asOf: timestamp("as_of", { withTimezone: true }),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("created_by").notNull(),
+  },
+  (t) => [index("evidence_contract").on(t.contractId)],
+);
+
+export const checkResults = pgTable(
+  "check_results",
+  {
+    id: id(),
+    contractId: text("contract_id").notNull(),
+    checkId: text("check_id").notNull(),
+    passed: boolean("passed").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("check_results_contract").on(t.contractId)],
+);
+
+export const connectors = pgTable("connectors", {
+  id: id(),
+  kind: text("kind").notNull(),
+  impl: text("impl").notNull(),
+  config: jsonb("config").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  capabilities: jsonb("capabilities")
+    .$type<{ read: boolean; write: boolean; asOf: boolean; webhook: boolean }>()
+    .notNull(),
+  dataPolicy: text("data_policy").$type<"allowed" | "blocked" | "pending_review">().notNull().default("allowed"),
+  policyNote: text("policy_note"),
+  status: text("status").$type<"active" | "disabled">().notNull().default("active"),
+  createdAt: now(),
+});
+
+export const projections = pgTable(
+  "projections",
+  {
+    id: id(),
+    contractId: text("contract_id"),
+    runId: text("run_id"),
+    surface: text("surface").$type<"slack_thread" | "gdoc_section" | "jira_issue" | "sheet_row">().notNull(),
+    externalId: text("external_id").notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    createdAt: now(),
+  },
+  (t) => [index("projections_surface_external").on(t.surface, t.externalId)],
+);
+
+/** The feedback loop and the training set. */
+export const signals = pgTable("signals", {
+  id: id(),
+  contractId: text("contract_id"),
+  sheetId: text("sheet_id"),
+  workerId: text("worker_id").notNull(),
+  kind: text("kind").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** A record is a data row; a contract is a work row. */
+export const records = pgTable(
+  "records",
+  {
+    id: id(),
+    sheetId: text("sheet_id").notNull(),
+    kind: text("kind").notNull(),
+    fields: jsonb("fields").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    source: text("source"),
+    createdBy: text("created_by").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("records_sheet_kind").on(t.sheetId, t.kind)],
+);
+
+/** Evaluated inside transition(). block refuses; escalate routes to a person. */
+export const invariants = pgTable("invariants", {
+  id: id(),
+  sheetId: text("sheet_id"),
+  runId: text("run_id"),
+  name: text("name").notNull(),
+  expression: text("expression").notNull(),
+  severity: text("severity").$type<"block" | "escalate" | "warn">().notNull(),
+  createdAt: now(),
+});
+
+export const rules = pgTable("rules", {
+  id: id(),
+  sheetId: text("sheet_id").notNull(),
+  name: text("name").notNull(),
+  trigger: jsonb("trigger").$type<Record<string, unknown>>().notNull(),
+  condition: text("condition"),
+  action: jsonb("action").$type<Record<string, unknown>>().notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: now(),
+});
+
+export const sheets = pgTable("sheets", {
+  id: id(),
+  runId: text("run_id"),
+  orgId: text("org_id"),
+  name: text("name").notNull(),
+  shape: text("shape").$type<"plan" | "batch">().notNull(),
+  definitionVersion: integer("definition_version").notNull().default(1),
+  parentRowId: text("parent_row_id"),
+  createdAt: now(),
+});
+
+export const columns = pgTable(
+  "columns",
+  {
+    id: id(),
+    sheetId: text("sheet_id").notNull(),
+    name: text("name").notNull(),
+    type: text("type").$type<ColumnType>().notNull(),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    position: integer("position").notNull().default(0),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("columns_sheet_name").on(t.sheetId, t.name)],
+);
+
+/** Append only; the current value is the latest by recorded_at. */
+export const cells = pgTable(
+  "cells",
+  {
+    id: id(),
+    sheetId: text("sheet_id").notNull(),
+    rowId: text("row_id").notNull(),
+    columnId: text("column_id").notNull(),
+    value: jsonb("value"),
+    setBy: text("set_by").notNull(),
+    setFrom: text("set_from").$type<"edit" | "tool" | "formula" | "proposal" | "planner" | "runtime">().notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("cells_sheet_row_col").on(t.sheetId, t.rowId, t.columnId, t.recordedAt)],
+);
+
+export const proposals = pgTable("proposals", {
+  id: id(),
+  sheetId: text("sheet_id").notNull(),
+  kind: text("kind").$type<"cell" | "row" | "column">().notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  proposedBy: text("proposed_by").notNull(),
+  reason: text("reason").notNull(),
+  evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  status: text("status").$type<"pending" | "accepted" | "rejected">().notNull().default("pending"),
+  decidedBy: text("decided_by"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: now(),
+});
+
+/** Per workflow version, the shape of past runs. The drift check reads this. */
+export const runsHistory = pgTable("runs_history", {
+  id: id(),
+  workflowName: text("workflow_name").notNull(),
+  workflowVersion: integer("workflow_version").notNull(),
+  runId: text("run_id").notNull(),
+  contractKey: text("contract_key").notNull(),
+  checkId: text("check_id"),
+  passed: boolean("passed"),
+  outputShape: jsonb("output_shape").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Webhook deliveries land here before they become Inngest events. */
+export const connectorEvents = pgTable("connector_events", {
+  id: id(),
+  connectorId: text("connector_id").notNull(),
+  kind: text("kind").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ContractState =
+  | "drafted"
+  | "contracted"
+  | "in_progress"
+  | "completed_pending_check"
+  | "verified"
+  | "done"
+  | "handed_back"
+  | "awaiting_approval"
+  | "escalated"
+  | "blocked"
+  | "failed"
+  | "reopened";
+
+export type ColumnType =
+  | "text"
+  | "number"
+  | "date"
+  | "owner"
+  | "status"
+  | "check"
+  | "evidence"
+  | "input"
+  | "output"
+  | "formula"
+  | "agent_step"
+  | "approval"
+  | "link"
+  | "entity";
+
+export type Worker = typeof workers.$inferSelect;
+export type Contract = typeof contracts.$inferSelect;
+export type Transition = typeof transitions.$inferSelect;
+export type Evidence = typeof evidence.$inferSelect;
+export type CheckResult = typeof checkResults.$inferSelect;
+export type Run = typeof runs.$inferSelect;
+export type Workflow = typeof workflows.$inferSelect;
+export type Sheet = typeof sheets.$inferSelect;
+export type Column = typeof columns.$inferSelect;
+export type Cell = typeof cells.$inferSelect;
+export type Proposal = typeof proposals.$inferSelect;
+export type LedgerRecord = typeof records.$inferSelect;
