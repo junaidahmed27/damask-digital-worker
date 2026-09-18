@@ -102,6 +102,7 @@ describe("WP-10 the Day One run materializes as a plan sheet", () => {
       "check",
       "evidence",
       "outputs",
+      "inputs",
       "deadline",
       "all_children_verified",
     ]);

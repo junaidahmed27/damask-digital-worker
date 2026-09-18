@@ -37,6 +37,7 @@ const PLAN_COLUMNS: ColumnSpec[] = [
   { name: "check", type: "check" },
   { name: "evidence", type: "evidence" },
   { name: "outputs", type: "output" },
+  { name: "inputs", type: "input" },
   { name: "deadline", type: "date" },
   { name: "all_children_verified", type: "formula", config: { formula: "=ALL_VERIFIED(children)" } },
 ];
@@ -79,6 +80,7 @@ export async function materializePlanSheet(
       check: contract.checkId,
       evidence: evidence.map((e) => ({ kind: e.kind, sha256: e.sha256 })),
       outputs: contract.outputs,
+      inputs: contract.inputs,
       deadline: contract.deadline?.toISOString() ?? null,
     };
     for (const [name, value] of Object.entries(values)) {

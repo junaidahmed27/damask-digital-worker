@@ -285,6 +285,23 @@ export const cells = pgTable(
   (t) => [index("cells_sheet_row_col").on(t.sheetId, t.rowId, t.columnId, t.recordedAt)],
 );
 
+/** A comment thread on a cell. Mirrors to the row's chat thread. */
+export const cellComments = pgTable(
+  "cell_comments",
+  {
+    id: id(),
+    sheetId: text("sheet_id").notNull(),
+    rowId: text("row_id").notNull(),
+    columnId: text("column_id"),
+    parentId: text("parent_id"),
+    body: text("body").notNull(),
+    authorId: text("author_id").notNull(),
+    mirroredTo: text("mirrored_to"),
+    createdAt: now(),
+  },
+  (t) => [index("cell_comments_sheet_row").on(t.sheetId, t.rowId)],
+);
+
 export const proposals = pgTable("proposals", {
   id: id(),
   sheetId: text("sheet_id").notNull(),
@@ -363,3 +380,4 @@ export type Column = typeof columns.$inferSelect;
 export type Cell = typeof cells.$inferSelect;
 export type Proposal = typeof proposals.$inferSelect;
 export type LedgerRecord = typeof records.$inferSelect;
+export type CellComment = typeof cellComments.$inferSelect;

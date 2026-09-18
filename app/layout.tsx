@@ -12,6 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <span className="brand">Work Ledger</span>
           <nav>
             <Link href="/work">Work</Link>
+            <Link href="/sheets">Sheets</Link>
             <Link href="/workers">Workers</Link>
             <Link href="/runs">Runs</Link>
           </nav>

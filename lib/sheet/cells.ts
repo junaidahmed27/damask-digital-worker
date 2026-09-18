@@ -104,14 +104,21 @@ export async function setCell(db: Db, write: CellWrite): Promise<CellWriteResult
  * same way: the cell is blank, so there is nothing of a person's to overwrite.
  */
 async function agentMayWrite(db: Db, column: Column, write: CellWrite): Promise<boolean> {
+  // A formula cell is derived rather than authored, so recomputing it is never
+  // an overwrite of anybody's work, whoever the recompute ran for.
+  if (write.setFrom === "formula" || column.type === "formula") return true;
   if (column.type === "output" || column.type === "evidence") return true;
+
+  const previous = await currentCell(db, write.sheetId, write.rowId, write.columnId);
+  // Golden rule 5, and it holds even on an agent's own column: a value a person
+  // typed is never overwritten, only proposed against.
+  if (previous?.setFrom === "edit") return false;
+
   if (column.type === "agent_step") {
     const owner = (column.config as { owner?: string }).owner;
     return !owner || owner === write.setBy;
   }
-  const previous = await currentCell(db, write.sheetId, write.rowId, write.columnId);
-  if (!previous) return true;
-  return previous.setFrom !== "edit";
+  return true;
 }
 
 export async function currentCell(

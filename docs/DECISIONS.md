@@ -142,3 +142,24 @@ row is still `awaiting_approval`, and `settleApproval`, triggered by
 why a refusal did not take. `waitForEvent` is still what watches the window, as
 the plan asks, and nothing depends on a function being parked in the process the
 decision happens to land in.
+
+## D-15. An edit to a running row's inputs unsticks the row without breaking invariant 4
+
+The plan says a running row that is edited is re evaluated. A row sitting in
+`awaiting_approval` is holding a result computed from inputs that have just
+changed, so it has to move; but invariant 4 says only the named approver resolves
+that row, and `handed_back` is one of the two resolutions it guards. So
+`editCell` tries `handed_back` first, and when the state machine refuses it,
+because the editor is not the approver, it escalates the row instead with the
+reason. Either way the row stops holding a stale result, the approver is never
+asked to settle something that moved under them, and the agent picks the row up
+again from `escalated`. Nothing in the state machine changed.
+
+## D-16. A formula cell is derived, so recomputing it is never an overwrite
+
+Golden rule 5 stops an agent writing over a cell a person set, and it holds on
+an agent's own `agent_step` column too. Formula cells are the exception, and have
+to be: they are derived rather than authored, and a recompute that ran on an
+agent's behalf was briefly turning every formula cell on the sheet into a pending
+proposal. `setCell` now lets a `formula` write through unconditionally and applies
+the rule to everything else.

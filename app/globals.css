@@ -146,3 +146,42 @@ button { font: inherit; }
   td { border: none; padding: 2px 12px; }
   .drawer { width: 100vw; }
 }
+
+/* The grid */
+.gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.grid { border: none; border-radius: 0; min-width: 760px; }
+.grid th { vertical-align: top; white-space: nowrap; }
+.grid td { vertical-align: top; min-width: 130px; }
+.grid .rowhead { min-width: 170px; position: sticky; left: 0; background: var(--panel); border-right: 1px solid var(--line); }
+.coltype { font-size: 10px; color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.cell {
+  background: none; border: none; padding: 1px 0; font: inherit; color: var(--ink);
+  cursor: text; text-align: left; max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; display: block; width: 100%;
+}
+.cell.readonly { cursor: default; color: var(--muted); }
+.cellinput {
+  font: inherit; padding: 2px 6px; width: 100%; min-width: 120px;
+  border: 1px solid var(--accent); border-radius: 4px; background: var(--panel); color: var(--ink);
+}
+.prov { font-size: 10px; color: var(--muted); opacity: 0; transition: opacity .12s; }
+.grid td:hover .prov { opacity: 1; }
+td.proposed { background: color-mix(in oklab, var(--warn) 12%, transparent); }
+.proposal { margin-top: 4px; font-size: 11px; border-left: 2px solid var(--warn); padding-left: 6px; }
+.proposal button {
+  margin-right: 4px; margin-top: 2px; padding: 1px 7px; font-size: 11px;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); cursor: pointer;
+}
+.thread { margin-top: 4px; font-size: 11px; border-left: 2px solid var(--line); padding-left: 6px; color: var(--muted); }
+.thread .pill { margin-left: 4px; font-size: 9px; }
+.tiny { font-size: 10px; opacity: 0; transition: opacity .12s; }
+.grid td:hover .tiny { opacity: 1; }
+.note {
+  margin: 6px 0; padding: 6px 10px; border-left: 2px solid var(--accent);
+  background: color-mix(in oklab, var(--accent) 8%, transparent); font-size: 12px;
+}
+.refusal.wide { max-width: none; }
+.newrun select {
+  padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); margin-right: 8px; font: inherit;
+}
