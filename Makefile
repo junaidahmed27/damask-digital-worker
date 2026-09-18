@@ -1,4 +1,4 @@
-.PHONY: dev build migrate seed demo test typecheck lint gate audit clean
+.PHONY: dev build migrate seed demo audit test typecheck lint gate clean fresh
 
 dev:
 	npm run dev
@@ -12,8 +12,13 @@ migrate:
 seed: migrate
 	npm run seed
 
+## The Day One scenario end to end on the simulators.
 demo: seed
 	npm run demo
+
+## The printable audit page for the most recent run.
+audit:
+	npx tsx scripts/export_audit.ts
 
 test:
 	npm run test
@@ -24,12 +29,19 @@ typecheck:
 lint:
 	npm run lint
 
-audit:
-	npx tsx scripts/export_audit.ts
-
-## The gate: nothing is committed red.
-gate: typecheck test demo
+##
+## The gate. Nothing is committed red.
+##   typecheck, lint, the state machine tests, the check pack tests, and a
+##   headless run of the Day One scenario. Set DATABASE_URL to run it against a
+##   Neon branch instead of the embedded database.
+##
+gate: typecheck lint test fresh demo
+	@echo ""
 	@echo "gate: green"
 
-clean:
-	rm -rf .ledger-data .next
+## Start from an empty database.
+fresh:
+	@rm -rf .ledger-data
+
+clean: fresh
+	rm -rf .next .audit

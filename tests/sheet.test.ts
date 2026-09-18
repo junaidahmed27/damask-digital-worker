@@ -202,3 +202,41 @@ describe("WP-5 the Work tab reads", () => {
     expect(welcome?.blockedBy).toHaveLength(6);
   });
 });
+
+describe("WP-7 the audit export answers who approved what", () => {
+  it("names Dan as the approver who let the onboarding proceed", async () => {
+    const fresh = await seededDb();
+    const local = await createEngine(fresh, { registry: createRegistry({ simulatorsOnly: true }), channel: "#t" });
+    const id = await local.createRun({
+      workflow: "day_one",
+      goal: "Priya starts Monday as a sales engineer in Austin. hire_id=priya",
+      requestedBy: "maya",
+    });
+    await local.contract({ runId: id, actorId: "maya" });
+    await local.settle();
+
+    const background = await getContractByKey(fresh.db, id, "background_check");
+    if (background?.state !== "awaiting_approval") throw new Error("the background check did not stop for a person");
+    await local.decide({
+      contractId: background.id,
+      decision: "approve",
+      actorId: "dan",
+      reason: "partial name match reviewed; not the same person",
+    });
+
+    const audit = await exportAudit(fresh.db, id);
+    const page = renderAuditPage(audit);
+
+    // The acceptance: the audit page names Dan.
+    expect(page).toContain("Dan Whitfield");
+    const access = audit.approvals.find((a) => a.check === "background_check_cleared_by_human");
+    expect(access?.approverName).toBe("Dan Whitfield");
+    expect(access?.reason).toContain("not the same person");
+
+    // And it shows the whole chain behind that decision.
+    expect(audit.counts.transitions).toBeGreaterThan(20);
+    expect(audit.counts.evidence).toBeGreaterThan(10);
+    expect(audit.chainsOk).toBe(true);
+    await fresh.close();
+  }, 90_000);
+});
