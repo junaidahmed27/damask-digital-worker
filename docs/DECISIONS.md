@@ -237,3 +237,15 @@ A rule's condition is evaluated by the same parser the formula columns use, with
 that chases the row, and there is one expression language in the product rather
 than two. A rule whose condition cannot be parsed does not fire and does not stop
 the other rules on the sheet.
+
+## D-24. A rehearsal replays what people did, not only what they decided
+
+The plan says a rehearsal executes a workflow version against recorded events. The
+first version replayed only the approvals, so Maya's own row, the first week
+schedule, never moved, the welcome email stayed blocked behind it, and every
+rehearsal reported two breaks that had nothing to do with the change under test.
+A rehearsal now replays the rows a person worked themselves as well: their
+evidence and outputs are copied from the recording and the row is moved through
+the same states, and then the check that runs is the one in the version under
+test. That is the point of the exercise, and it is why a change to a check shows
+up as exactly the rows it affects.

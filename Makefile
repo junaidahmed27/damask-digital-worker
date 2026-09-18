@@ -1,4 +1,4 @@
-.PHONY: dev build migrate seed demo audit test typecheck lint gate clean fresh
+.PHONY: dev build migrate seed demo audit rehearse test typecheck lint gate clean fresh
 
 dev:
 	npm run dev
@@ -20,6 +20,10 @@ demo: seed
 audit:
 	npx tsx scripts/export_audit.ts
 
+## Rehearse the current workflow definition against the recorded run.
+rehearse:
+	npx tsx scripts/rehearse.ts
+
 test:
 	npm run test
 
@@ -31,11 +35,12 @@ lint:
 
 ##
 ## The gate. Nothing is committed red.
-##   typecheck, lint, the state machine tests, the check pack tests, and a
-##   headless run of the Day One scenario. Set DATABASE_URL to run it against a
-##   Neon branch instead of the embedded database.
+##   typecheck, lint, the state machine tests, the check pack tests, a headless
+##   run of the Day One scenario, and a rehearsal of the current definition
+##   against that run with a zero diff on verified rows. Set DATABASE_URL to run
+##   it against a Neon branch instead of the embedded database.
 ##
-gate: typecheck lint test fresh demo
+gate: typecheck lint test fresh demo rehearse
 	@echo ""
 	@echo "gate: green"
 
