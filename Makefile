@@ -1,4 +1,4 @@
-.PHONY: dev build migrate seed demo audit rehearse memory test typecheck lint gate clean fresh
+.PHONY: dev build migrate seed demo audit rehearse memory providers test typecheck lint gate clean fresh
 
 dev:
 	npm run dev
@@ -28,6 +28,10 @@ rehearse:
 memory:
 	npx tsx scripts/memory.ts --twice
 
+## The Day One scenario on every model provider this deployment can reach.
+providers:
+	npx tsx scripts/gate_providers.ts
+
 test:
 	npm run test
 
@@ -45,7 +49,7 @@ lint:
 ##   integrity suite. Set DATABASE_URL to run it against a Neon branch instead of
 ##   the embedded database.
 ##
-gate: typecheck lint test fresh demo rehearse memory
+gate: typecheck lint test fresh demo rehearse memory providers
 	@echo ""
 	@echo "gate: green"
 

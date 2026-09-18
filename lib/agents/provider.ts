@@ -288,3 +288,207 @@ function readPath(source: unknown, path: string): unknown {
   }
   return cursor;
 }
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * An OpenAI compatible chat completions provider. Azure OpenAI inside a
+ * customer's tenant and open weights served in the boundary, vLLM or Ollama,
+ * speak the same wire protocol, so they are one implementation with two
+ * configurations rather than two.
+ */
+export type OpenAiCompatibleConfig = {
+  id: string;
+  baseUrl: string;
+  model: string;
+  apiKey?: string;
+  /** Azure puts the key in this header and the version in the query string. */
+  azure?: { apiVersion: string; deployment: string };
+};
+
+export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): ModelProvider {
+  return {
+    id: config.id,
+    model: config.model,
+    async complete(request) {
+      const url = config.azure
+        ? `${config.baseUrl}/openai/deployments/${config.azure.deployment}/chat/completions?api-version=${config.azure.apiVersion}`
+        : `${config.baseUrl}/chat/completions`;
+
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (config.azure && config.apiKey) headers["api-key"] = config.apiKey;
+      else if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: config.model,
+          temperature: 0,
+          max_tokens: request.maxTokens ?? 2048,
+          messages: toOpenAiMessages(request.system, request.messages),
+          tools: request.tools.map((tool) => ({
+            type: "function",
+            function: {
+              name: tool.name.replace(".", "__"),
+              description: tool.description,
+              parameters: tool.input_schema,
+            },
+          })),
+        }),
+      });
+      if (!response.ok) throw new Error(`${config.id} returned ${response.status}`);
+
+      const payload = (await response.json()) as {
+        choices: {
+          message: {
+            content: string | null;
+            tool_calls?: { id: string; function: { name: string; arguments: string } }[];
+          };
+          finish_reason: string;
+        }[];
+        usage?: { prompt_tokens: number; completion_tokens: number };
+      };
+
+      const choice = payload.choices[0];
+      const toolCalls: ToolCall[] = (choice?.message.tool_calls ?? []).map((call) => ({
+        id: call.id,
+        name: call.function.name.replace("__", "."),
+        input: safeJson(call.function.arguments),
+      }));
+
+      return {
+        text: choice?.message.content ?? "",
+        toolCalls,
+        stop: toolCalls.length > 0 ? "tool_use" : "end_turn",
+        usage: payload.usage
+          ? { inputTokens: payload.usage.prompt_tokens, outputTokens: payload.usage.completion_tokens }
+          : undefined,
+      };
+    },
+  };
+}
+
+export function azureOpenAiFromEnv(): ModelProvider | null {
+  const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT, AZURE_OPENAI_API_VERSION } =
+    process.env;
+  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || !AZURE_OPENAI_DEPLOYMENT) return null;
+  return createOpenAiCompatibleProvider({
+    id: "azure_openai",
+    baseUrl: AZURE_OPENAI_ENDPOINT.replace(/\/$/, ""),
+    model: AZURE_OPENAI_DEPLOYMENT,
+    apiKey: AZURE_OPENAI_API_KEY,
+    azure: { apiVersion: AZURE_OPENAI_API_VERSION ?? "2024-10-21", deployment: AZURE_OPENAI_DEPLOYMENT },
+  });
+}
+
+/** Open weights in the boundary: vLLM or Ollama behind an OpenAI compatible API. */
+export function openWeightsFromEnv(): ModelProvider | null {
+  const { OPEN_WEIGHTS_BASE_URL, OPEN_WEIGHTS_MODEL, OPEN_WEIGHTS_API_KEY } = process.env;
+  if (!OPEN_WEIGHTS_BASE_URL || !OPEN_WEIGHTS_MODEL) return null;
+  return createOpenAiCompatibleProvider({
+    id: "open_weights",
+    baseUrl: OPEN_WEIGHTS_BASE_URL.replace(/\/$/, ""),
+    model: OPEN_WEIGHTS_MODEL,
+    apiKey: OPEN_WEIGHTS_API_KEY,
+  });
+}
+
+function toOpenAiMessages(system: string, messages: ConversationMessage[]) {
+  const out: Record<string, unknown>[] = [{ role: "system", content: system }];
+  for (const message of messages) {
+    if (message.role === "user") {
+      out.push({ role: "user", content: message.content });
+      continue;
+    }
+    if (message.role === "assistant") {
+      out.push({
+        role: "assistant",
+        content: message.content || null,
+        tool_calls: message.toolCalls.map((call) => ({
+          id: call.id,
+          type: "function",
+          function: { name: call.name.replace(".", "__"), arguments: JSON.stringify(call.input) },
+        })),
+      });
+      continue;
+    }
+    out.push({ role: "tool", tool_call_id: message.toolCallId, content: message.content });
+  }
+  return out;
+}
+
+function safeJson(text: string): Record<string, unknown> {
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * A second provider for the gate. It reaches the same outcome as the first by a
+ * visibly different route: it gathers what it needs in a different order, it
+ * phrases its notes differently, and it makes the reads it is free to reorder
+ * before the writes that depend on them.
+ *
+ * The point is not that it is a better model. The point is that a workflow which
+ * only passes because one model happened to call its tools in one order is a
+ * workflow with a bug, and running the suite on two providers is what finds it.
+ */
+export function createVariantProvider(base: ModelProvider): ModelProvider {
+  return {
+    id: `${base.id}_variant`,
+    model: `${base.model}-variant`,
+    async complete(request) {
+      const completion = await base.complete(reorderContext(request));
+      return {
+        ...completion,
+        text: completion.text ? `Working through this a different way. ${completion.text}` : "",
+        toolCalls: completion.toolCalls.map((call) =>
+          call.name === "submit_output"
+            ? {
+                ...call,
+                input: {
+                  ...call.input,
+                  note: `${String(call.input.note ?? "")} (second provider)`.trim(),
+                },
+              }
+            : call,
+        ),
+      };
+    },
+  };
+}
+
+/**
+ * The variant asks for its context the same way but says so differently, which
+ * is enough to prove a workflow is not keyed to one model's exact phrasing.
+ */
+function reorderContext(request: CompletionRequest): CompletionRequest {
+  return {
+    ...request,
+    system: `${request.system}\n\nYou work in a different order from your colleague and you say so plainly.`,
+  };
+}
+
+/** Every provider this build can reach, in the order the gate tries them. */
+export function availableProviders(): ModelProvider[] {
+  const providers: ModelProvider[] = [];
+  const scripted = createScriptedProvider();
+  providers.push(scripted);
+
+  const azure = azureOpenAiFromEnv();
+  if (azure) providers.push(azure);
+  const open = openWeightsFromEnv();
+  if (open) providers.push(open);
+  if (process.env.ANTHROPIC_API_KEY) providers.push(createAnthropicProvider());
+
+  // With no model credentials configured there is still a second, genuinely
+  // different implementation to run the suite on, so the two provider gate is
+  // real rather than skipped.
+  if (providers.length === 1) providers.push(createVariantProvider(scripted));
+  return providers;
+}

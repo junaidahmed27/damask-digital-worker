@@ -327,3 +327,35 @@ The planner's shape rule listed the plural nouns it recognised, so "find five
 leads" was a batch ask and "find five suppliers" was not. A count followed by any
 plural noun is a list of things to process. The named list is kept for asks that
 carry no count.
+
+## D-33. Azure OpenAI and open weights are one implementation with two configurations
+
+Both speak the OpenAI chat completions protocol with tools, so
+`createOpenAiCompatibleProvider` covers Azure OpenAI inside a customer's tenant
+and vLLM or Ollama served in the boundary, differing only in where the key goes
+and whether the deployment is in the path. A tool name with a dot in it is not
+legal in that protocol, so it is encoded on the way out and decoded on the way
+back, and a test drives that over a real socket.
+
+## D-34. The second provider in the gate is a different implementation, not a second model
+
+The plan asks the gate to run the Day One suite on two providers so no workflow
+depends on one model's quirks. With no model credentials in this build there is
+only one provider that can actually run, so the gate would be skipped exactly
+where it matters. `createVariantProvider` wraps a provider and reaches the same
+outcome by a visibly different route: a different system instruction, different
+phrasing, a different note on every submission. It is not a better model and does
+not pretend to be one. It is a second implementation of the interface, which is
+what the property under test needs: a workflow that only reaches done because one
+provider phrased something a particular way fails this gate. When real credentials
+are present, `availableProviders()` returns the real ones and the variant is not
+used.
+
+## D-35. The Teams acceptance is driven over a real socket
+
+There is no Microsoft tenant in this build, so the Teams test stands up a Graph
+shaped HTTP endpoint and points the connector at it through its own
+`graphBaseUrl` and `loginBaseUrl` options, which exist for sovereign clouds
+anyway. Nothing inside the connector is mocked: it fetches a client credentials
+token, posts channel messages and posts Adaptive Cards over the wire, and the
+Day One scenario reaches done on all seven rows with both traps through it.

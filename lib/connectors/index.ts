@@ -3,6 +3,7 @@ import { createAffinityConnector, affinityConfigFromEnv, createAffinitySimulator
 import { createMemoryConnector } from "./memory/connector";
 import { createChatSimulator } from "./chat/simulator";
 import { createSlackConnector, slackConfigFromEnv } from "./chat/slack";
+import { createTeamsConnector, teamsConfigFromEnv } from "./chat/teams";
 import { createDocsSimulator } from "./docs/simulator";
 import { createGoogleDocsConnector } from "./docs/google";
 import { createFacilitiesSimulator } from "./facilities/simulator";
@@ -41,7 +42,12 @@ export function createRegistry(options: RegistryOptions = {}): ConnectorRegistry
 
   const workday = simulatorsOnly ? null : workdayConfigFromEnv();
   const okta = simulatorsOnly ? null : oktaConfigFromEnv();
-  const slack = simulatorsOnly ? null : slackConfigFromEnv();
+  // The chat surface is an abstraction with three implementations. A worker's
+  // places list is the same across all of them, and the runtime does not know
+  // which one it is talking to. LEDGER_CHAT picks when both are configured.
+  const preferred = process.env.LEDGER_CHAT;
+  const teams = simulatorsOnly || preferred === "slack" ? null : teamsConfigFromEnv();
+  const slack = simulatorsOnly || preferred === "teams" ? null : slackConfigFromEnv();
   const googleJson = simulatorsOnly ? undefined : process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
   const affinity = simulatorsOnly ? null : affinityConfigFromEnv();
@@ -53,7 +59,7 @@ export function createRegistry(options: RegistryOptions = {}): ConnectorRegistry
     createShippingSimulator(),
     createFacilitiesSimulator(),
     createFilesSimulator(),
-    slack ? createSlackConnector(slack) : createChatSimulator(),
+    teams ? createTeamsConnector(teams) : slack ? createSlackConnector(slack) : createChatSimulator(),
     googleJson
       ? createGoogleDocsConnector({
           serviceAccountJson: googleJson,
