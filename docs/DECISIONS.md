@@ -466,3 +466,21 @@ transition with their identity on it, their organization is recorded on the gran
 and the grant itself lands in `signals` marked as crossing an organization. A
 grant never reaches further than the granter's own scopes, and the state machine
 does not care which organization an actor belongs to: the same invariants apply.
+
+## D-45. The Jira adapter is built; the Python check functions are not
+
+WP-9 is marked optional and has two halves. The Jira adapter is built and driven
+over a real socket against a Jira Cloud shaped endpoint: an issue per row, the
+row's state mapped onto the project's workflow, the reason posted as a comment so
+the log reads the same in both places, and a webhook that turns a person's change
+in Jira into a request rather than a move. Several ledger states map to Done, so a
+person dragging a card to Done asks the row for `done`, and the state machine
+refuses it unless the row is verified. That refusal is the whole point of having
+the adapter be a projection.
+
+The Python check functions are not built. They are a Vercel Python deployment
+concern, the check registry already takes any function of
+`(contract, outputs, evidence) -> {passed, details}`, and there is no Vercel
+deployment here to run one on, so building it would produce something that could
+not be exercised. The registry is the seam; adding a Python pack behind it is a
+deployment change rather than a design one.

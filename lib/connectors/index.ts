@@ -16,6 +16,7 @@ import { ConnectorRegistry, type Connector } from "./kit";
 import { createMailSandbox } from "./mail/sandbox";
 import { createMdmSimulator } from "./mdm/simulator";
 import { createShippingSimulator } from "./shipping/simulator";
+import { createJiraConnector, jiraConfigFromEnv } from "./ticketing/jira";
 
 export type RegistryOptions = {
   /** Forces every connector to its simulator, whatever the environment holds. */
@@ -51,6 +52,9 @@ export function createRegistry(options: RegistryOptions = {}): ConnectorRegistry
   const googleJson = simulatorsOnly ? undefined : process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
   const affinity = simulatorsOnly ? null : affinityConfigFromEnv();
+  // Jira is optional everywhere: with no credentials there is no ticketing
+  // connector at all, rather than a stub that pretends to be one.
+  const jira = simulatorsOnly ? null : jiraConfigFromEnv();
 
   const connectors: Connector[] = [
     workday ? createWorkdayConnector(workday) : createHrisSimulator(),
@@ -69,6 +73,7 @@ export function createRegistry(options: RegistryOptions = {}): ConnectorRegistry
     createMailSandbox(`${dataDir}/mail`),
     affinity ? createAffinityConnector(affinity) : createAffinitySimulator(),
     ...(options.db ? [createMemoryConnector(options.db, { scopes: options.scopes })] : []),
+    ...(jira ? [createJiraConnector(jira)] : []),
   ];
 
   return new ConnectorRegistry().register(...connectors);
